@@ -102,3 +102,20 @@ test("insufficient reservation returns a typed error", async () => {
     InsufficientBudgetError,
   );
 });
+
+test("settlement is idempotent when the same actual cost is replayed", async () => {
+  const engine = new CreditEngine();
+  await engine.createProjectBudget({ projectId: "project-i", budgetMicros: 1_000 });
+  const reservation = await engine.reserve({
+    projectId: "project-i",
+    estimatedCostMicros: 300,
+    idempotencyKey: "settle-replay",
+  });
+
+  const first = await engine.settle(reservation.id, 250);
+  const replay = await engine.settle(reservation.id, 250);
+  assert.equal(replay.status, "SETTLED");
+  assert.equal(replay.actualMicros, 250);
+  assert.equal(first.id, replay.id);
+  assert.equal((await engine.getStatus("project-i")).spentMicros, 250);
+});
