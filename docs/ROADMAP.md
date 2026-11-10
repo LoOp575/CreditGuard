@@ -8,11 +8,13 @@
 - [ ] Local install and protocol smoke test
 
 ## Phase 2: Credit Engine
-- [ ] Project budget model
-- [ ] Preflight policy
-- [ ] Atomic reservations
-- [ ] Usage reconciliation
-- [ ] Concurrency and failure tests
+- [x] Project budget model (in-memory reference implementation)
+- [x] Preflight policy
+- [x] Atomic reservations (single-process serialization)
+- [x] Usage reconciliation
+- [x] Concurrency and failure test cases added
+- [ ] Durable transactional storage (PostgreSQL)
+- [ ] Distributed concurrency and failure tests
 
 ## Phase 3: Project + Loop Engine
 - [ ] Project lifecycle and evidence-based progress
