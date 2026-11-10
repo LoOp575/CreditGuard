@@ -28,6 +28,12 @@ CREATED, PLANNING, EXECUTING, VERIFYING, COMPLETED, PAUSED, BLOCKED, FAILED.
 
 Progress must be supported by observable evidence such as test results, file changes, generated artifacts, or completed milestones. An agent's self-reported percentage is not sufficient evidence by itself.
 
+## Credit Engine implementation status
+
+The first reference implementation lives in `packages/guard-core/src/credit-engine`. Money is represented as integer USD micros (1 USD = 1,000,000 micros) to avoid floating-point accounting errors. The in-memory ledger serializes mutations within one Node.js process and supports idempotency keys.
+
+This is intentionally not a durable or distributed ledger. Restarting the process loses its state, and multiple server instances do not share a lock. Replace the adapter with transactional PostgreSQL storage before relying on it for real provider spending.
+
 ## Budget safety
 
 A future Gateway reservation must be atomic. Concurrent requests must not both spend the same remaining balance. After provider completion, reconcile the reservation against actual usage. A failed HTTP request is not automatically free; provider billing records determine whether a charge occurred.
