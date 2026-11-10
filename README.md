@@ -47,7 +47,14 @@ docs/               Architecture, security, roadmap
 
 ## Development status
 
-This repository starts with the MCP foundation. Features are added incrementally and must be tested before being described as production-ready.
+The repository now includes an MCP foundation and a first Credit Engine implementation:
+- Project budget creation and status
+- Preflight checks
+- Atomic in-process reservations with idempotency keys
+- Actual-usage settlement and unused-reservation release
+- Tests for concurrency, idempotency, budget overruns, and release behavior
+
+**Important limitation:** the current ledger is in-memory and single-process. State is lost on restart, and its lock does not coordinate multiple server instances. It is a development/reference implementation, not a production spending boundary. PostgreSQL transactions and durable idempotency constraints are required before production enforcement.
 
 ## Local setup
 
