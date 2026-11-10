@@ -144,7 +144,11 @@ export class CreditEngine {
       }
 
       const project = this.projects.get(reservation.projectId)!;
-      project.spentMicros += actualCostMicros;
+      const nextSpent = project.spentMicros + actualCostMicros;
+      if (!Number.isSafeInteger(nextSpent)) {
+        throw new TypeError("settlement would exceed the safe integer range for USD micros");
+      }
+      project.spentMicros = nextSpent;
       project.updatedAt = new Date().toISOString();
       reservation.actualMicros = actualCostMicros;
       reservation.status = "SETTLED";
