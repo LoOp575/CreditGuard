@@ -3,7 +3,7 @@ import type { LoopAssessment } from "../loop-guard/types.js";
 import type { ProjectState } from "../project-engine/types.js";
 import { DecisionEngine } from "../decision-engine/engine.js";
 import { preparePrompt } from "./intelligence/prompt.js";
-import { assessTaskScope } from "./intelligence/prompt.js";
+import { assessTaskScope } from "./intelligence/failure.js";
 import { assessQuality } from "./intelligence/quality.js";
 import type { QualityCheck } from "./intelligence/types.js";
 
