@@ -167,7 +167,7 @@ server.tool(
       const [credit, project] = await Promise.all([creditEngine.getStatus(projectId), projectEngine.get(projectId)]);
       const progress = await projectEngine.progress(projectId);
       const loop = await loopGuard.assess(projectId);
-      return { content: [{ type: "text", text: JSON.stringify(decisionEngine.decide({ credit, projectState: project.state, progressPercent: progress.percent, estimatedCostMicros, loop, checkpointAvailable })) }] };
+      return { content: [{ type: "text", text: JSON.stringify(decisionEngine.decide({ credit, projectState: project.state, progressPercent: progress.percent, progressTracked: progress.total > 0, estimatedCostMicros, loop, checkpointAvailable })) }] };
     } catch (error) { return toolError(error); }
   },
 );
