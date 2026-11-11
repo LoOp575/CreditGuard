@@ -99,3 +99,15 @@ The intelligence package provides a `TokenizerAdapter` contract and `measureProm
 The guard-core package exports `executeWithGuard` and `createActionScopeFingerprint`. A trusted tool handler wraps its real dispatch function with this adapter. It computes a SHA-256 fingerprint from the action class and canonicalized payload, asks a trusted authorization callback, and invokes the handler only when the callback returns `allowed: true`.
 
 The authorization callback must read approval state from a trusted server-side source. Never trust an Agent-supplied authorization boolean or fingerprint. Compute the fingerprint immediately before dispatch from the exact payload that will be executed. Keep the dispatch function private and do not expose an alternate unguarded route. If the authorization service errors or is unavailable, execution stops. This is a reusable reference adapter, not a global OS sandbox: it cannot intercept arbitrary third-party tools, direct shell access, or provider calls that bypass the Gateway. Every integration must wrap all relevant execution paths.
+
+
+## Guarded Agent adapters
+
+The `@credit-guard/agent-adapter` workspace package provides filesystem, terminal, database-migration, and deployment boundaries. They share `executeWithGuard` and should use `createPostgresActionAuthorizer(pool)`, which reads the authoritative `cg_approval_requests` row directly and checks status, database-time expiry, project ID, required approval class, and exact fingerprint. Database errors propagate; there is no fail-open fallback.
+
+- Filesystem: operates only below a configured canonical workspace root; rejects traversal and symlink targets, uses no-follow opens, and requires approval for overwrite/delete.
+- Terminal: accepts only trusted host-registered executable profiles, uses argument arrays with `shell: false`, applies time/output limits, and requires security-sensitive approval for every command. The Agent cannot choose an executable path.
+- Database: accepts only host-registered migrations with verified SHA-256 checksums. It executes each migration transactionally under a PostgreSQL advisory lock and records migration ID/checksum. The Agent cannot submit arbitrary SQL.
+- Deployment: accepts only host-registered target handlers and requires production approval for the exact target/artifact reference.
+
+These are privileged tool adapters, not a universal sandbox. Every path to the underlying resource must be routed through the adapter. Use least-privilege OS/container isolation and keep database connections, deployment credentials, provider keys, and approval authority outside Agent context. The generic deployment adapter requires a real provider-specific handler to be registered by the host.
