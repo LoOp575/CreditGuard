@@ -35,6 +35,7 @@ test("MCP server completes initialize and exposes expected tools",async()=>{
     assert.ok(names.includes("guard.project.create"));
     assert.ok(names.includes("guard.decision.evaluate"));
     assert.ok(names.includes("guard.gateway.unresolved"));
+    assert.ok(names.includes("guard.gateway.recover_request"));
   }finally{
     lines.close();
     child.kill("SIGTERM");
