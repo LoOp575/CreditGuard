@@ -257,18 +257,50 @@ server.tool(
 );
 
 server.tool(
+  "guard.gateway.recover_request",
+  "Recover an interrupted Gateway audit record by linking its durable reservation. If no reservation exists and status is STARTED, mark it as not dispatched.",
+  { requestId: z.string().uuid() },
+  async ({ requestId }) => {
+    if (!databasePool) return toolError(new Error("Gateway recovery requires DATABASE_URL and PostgreSQL mode"));
+    try {
+      const found = await databasePool.query(`SELECT g.request_id,g.project_id,g.client_idempotency_key,g.status,
+        COALESCE(g.reservation_id,r.id) AS reservation_id,r.status AS reservation_status
+        FROM cg_gateway_requests g LEFT JOIN cg_reservations r
+          ON r.id=g.reservation_id OR (g.reservation_id IS NULL AND r.project_id=g.project_id AND r.idempotency_key='gateway:'||g.client_idempotency_key)
+        WHERE g.request_id=$1`, [requestId]);
+      if (!found.rowCount) throw new Error("GATEWAY_REQUEST_NOT_FOUND");
+      const row = found.rows[0];
+      if (row.reservation_id) {
+        if (!row.reservation_status) throw new Error("RESERVATION_STATE_UNAVAILABLE");
+        if (!row.reservation_id || row.status === "STARTED") {
+          await databasePool.query("UPDATE cg_gateway_requests SET reservation_id=$2,updated_at=now() WHERE request_id=$1",[requestId,row.reservation_id]);
+        }
+        return { content: [{ type: "text", text: JSON.stringify({ recovered: true, ...row }) }] };
+      }
+      if (row.status === "STARTED") {
+        await databasePool.query("UPDATE cg_gateway_requests SET status='POLICY_BLOCKED',updated_at=now() WHERE request_id=$1",[requestId]);
+        return { content: [{ type: "text", text: JSON.stringify({ recovered: true, requestId, outcome: "NO_RESERVATION_NO_PROVIDER_DISPATCH" }) }] };
+      }
+      return { content: [{ type: "text", text: JSON.stringify({ recovered: false, ...row }) }] };
+    } catch (error) { return toolError(error); }
+  },
+);
+
+server.tool(
   "guard.gateway.unresolved",
   "List Gateway requests whose provider billing or ledger settlement needs reconciliation. Does not expose prompts or credentials.",
   { projectId: z.string().min(1) },
   async ({ projectId }) => {
     if (!databasePool) return toolError(new Error("Gateway audit requires DATABASE_URL and PostgreSQL mode"));
     try {
-      const result = await databasePool.query(`SELECT request_id,reservation_id,provider,model,status,
-        estimated_cost_micros,actual_cost_micros,input_tokens,output_tokens,created_at,updated_at
-        FROM cg_gateway_requests g JOIN cg_reservations r ON r.id=g.reservation_id
+      const result = await databasePool.query(`SELECT g.request_id,COALESCE(g.reservation_id,r.id) AS reservation_id,
+        g.client_idempotency_key,g.provider,g.model,g.status,g.estimated_cost_micros,g.actual_cost_micros,
+        g.input_tokens,g.output_tokens,g.created_at,g.updated_at,r.status AS reservation_status
+        FROM cg_gateway_requests g LEFT JOIN cg_reservations r
+          ON r.id=g.reservation_id OR (g.reservation_id IS NULL AND r.project_id=g.project_id AND r.idempotency_key='gateway:'||g.client_idempotency_key)
         WHERE g.project_id=$1 AND g.status IN
         ('STARTED','SUCCESS_USAGE_UNKNOWN','PROVIDER_ERROR_USAGE_UNKNOWN','UNKNOWN','RECONCILIATION_ERROR')
-        AND r.status='RESERVED' ORDER BY g.created_at DESC`, [projectId]);
+        AND (r.status='RESERVED' OR r.id IS NULL) ORDER BY g.created_at DESC`, [projectId]);
       return { content: [{ type: "text", text: JSON.stringify(result.rows) }] };
     } catch (error) { return toolError(error); }
   },
