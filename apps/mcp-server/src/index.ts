@@ -6,6 +6,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CreditEngine, CreditEngineError, PostgresCreditLedger, ProjectEngine, LoopGuard, DecisionEngine, ContextOptimizer, PostgresProjectStore, PostgresLoopStore, PostgresCheckpointStore, InMemoryCheckpointStore } from "@credit-guard/guard-core";
 import { Pool } from "pg";
 import { z } from "zod";
+import { verifySecretToken } from "./security.js";
 
 let projectEngine: ProjectEngine | PostgresProjectStore;
 let loopGuard: LoopGuard | PostgresLoopStore;
@@ -22,6 +23,7 @@ const server = new McpServer({
 });
 
 const databaseUrl = process.env.DATABASE_URL;
+const evidenceVerifierToken = process.env.EVIDENCE_VERIFIER_TOKEN;
 let creditEngine: CreditEngine | PostgresCreditLedger;
 let databasePool: Pool | undefined;
 let ledgerMode: string;
@@ -123,8 +125,10 @@ server.tool(
 server.tool(
   "guard.project.verify_evidence",
   "Mark evidence verified after an external test, artifact, or file check has actually been inspected. This tool trusts the caller and is not a cryptographic verifier.",
-  { projectId: z.string().min(1), milestoneId: z.string().min(1), reference: z.string().min(1), verificationSource: z.string().min(1) },
-  async ({ projectId, milestoneId, reference, verificationSource }) => { try {
+  { projectId: z.string().min(1), milestoneId: z.string().min(1), reference: z.string().min(1), verificationSource: z.string().min(1), verifierToken: z.string().min(24) },
+  async ({ projectId, milestoneId, reference, verificationSource, verifierToken }) => { try {
+    if (!evidenceVerifierToken) throw new Error("EVIDENCE_VERIFIER_NOT_CONFIGURED");
+    if (!verifySecretToken(verifierToken, evidenceVerifierToken)) throw new Error("INVALID_EVIDENCE_VERIFIER_TOKEN");
     const result = projectEngine instanceof PostgresProjectStore
       ? await projectEngine.verifyEvidence({ projectId, milestoneId, reference, verificationSource })
       : projectEngine.verifyEvidence({ projectId, milestoneId, reference, verificationSource });
