@@ -43,7 +43,8 @@
 - [x] PostgreSQL request outcome audit without prompt/key storage
 - [x] Reservation recovery and unresolved Gateway request tools
 - [x] Gateway end-to-end integration test with mocked provider and PostgreSQL
-- [ ] Key rotation workflow and production secret-manager deployment
+- [x] Overlapping project-token rotation with zero-downtime cutover and authentication tests
+- [ ] Provider-key rotation automation and production secret-manager deployment
 
 ## Phase 6: Validation
 - [x] PostgreSQL integration tests in CI
