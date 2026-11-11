@@ -1,8 +1,13 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CreditEngine, CreditEngineError, PostgresCreditLedger } from "@credit-guard/guard-core";
+import { CreditEngine, CreditEngineError, PostgresCreditLedger, ProjectEngine, LoopGuard, DecisionEngine, ContextOptimizer } from "@credit-guard/guard-core";
 import { Pool } from "pg";
 import { z } from "zod";
+
+const projectEngine = new ProjectEngine();
+const loopGuard = new LoopGuard();
+const decisionEngine = new DecisionEngine();
+const contextOptimizer = new ContextOptimizer();
 
 const server = new McpServer({
   name: "credit-guard",
@@ -55,6 +60,69 @@ server.tool(
       }),
     }],
   }),
+);
+
+server.tool(
+  "guard.project.create",
+  "Create a tracked project with explicit milestones.",
+  { id: z.string().min(1), goal: z.string().min(1), milestones: z.array(z.object({ id: z.string().min(1), title: z.string().min(1), required: z.boolean().optional() })).optional() },
+  async (args) => { try { return { content: [{ type: "text", text: JSON.stringify(projectEngine.create(args)) }] }; } catch (error) { return toolError(error); } },
+);
+
+server.tool(
+  "guard.project.get",
+  "Get project lifecycle, milestones, and evidence.",
+  { projectId: z.string().min(1) },
+  async ({ projectId }) => { try { return { content: [{ type: "text", text: JSON.stringify({ project: projectEngine.get(projectId), progress: projectEngine.progress(projectId) }) }] }; } catch (error) { return toolError(error); } },
+);
+
+server.tool(
+  "guard.project.transition",
+  "Move a project through a validated lifecycle transition.",
+  { projectId: z.string().min(1), state: z.enum(["PLANNING", "EXECUTING", "VERIFYING", "COMPLETED", "PAUSED", "BLOCKED", "FAILED"]) },
+  async ({ projectId, state }) => { try { return { content: [{ type: "text", text: JSON.stringify(projectEngine.transition(projectId, state)) }] }; } catch (error) { return toolError(error); } },
+);
+
+server.tool(
+  "guard.project.record_evidence",
+  "Attach evidence to a milestone. Only evidence explicitly marked verified completes a milestone; verification must be performed by a trusted integration.",
+  { projectId: z.string().min(1), milestoneId: z.string().min(1), kind: z.enum(["artifact", "test", "file_change", "milestone"]), reference: z.string().min(1), verified: z.boolean() },
+  async ({ projectId, milestoneId, kind, reference, verified }) => { try { return { content: [{ type: "text", text: JSON.stringify(projectEngine.recordEvidence({ projectId, milestoneId, evidence: { kind, reference, verified } })) }] }; } catch (error) { return toolError(error); } },
+);
+
+server.tool(
+  "guard.loop.record",
+  "Record a request, retry, error, or verified progress event and assess loop risk.",
+  { projectId: z.string().min(1), kind: z.enum(["request", "error", "retry", "progress"]), signature: z.string().optional() },
+  async (args) => { try { return { content: [{ type: "text", text: JSON.stringify(loopGuard.record(args)) }] }; } catch (error) { return toolError(error); } },
+);
+
+server.tool(
+  "guard.loop.assess",
+  "Assess recent retry, repeated-error, and no-progress patterns for a project.",
+  { projectId: z.string().min(1) },
+  async ({ projectId }) => ({ content: [{ type: "text", text: JSON.stringify(loopGuard.assess(projectId)) }] }),
+);
+
+server.tool(
+  "guard.decision.evaluate",
+  "Combine current credit, project state, progress, estimated cost, and loop risk into an explainable action.",
+  { projectId: z.string().min(1), estimatedCostMicros: z.number().int().nonnegative(), checkpointAvailable: z.boolean().optional() },
+  async ({ projectId, estimatedCostMicros, checkpointAvailable }) => {
+    try {
+      const [credit, project] = await Promise.all([creditEngine.getStatus(projectId), Promise.resolve(projectEngine.get(projectId))]);
+      const progress = projectEngine.progress(projectId);
+      const loop = loopGuard.assess(projectId);
+      return { content: [{ type: "text", text: JSON.stringify(decisionEngine.decide({ credit, projectState: project.state, progressPercent: progress.percent, estimatedCostMicros, loop, checkpointAvailable })) }] };
+    } catch (error) { return toolError(error); }
+  },
+);
+
+server.tool(
+  "guard.context.optimize",
+  "Select context sections under a character budget while preserving required sections and reporting omissions.",
+  { maxCharacters: z.number().int().nonnegative(), sections: z.array(z.object({ id: z.string().min(1), content: z.string(), priority: z.number().min(1).max(5), required: z.boolean().optional() })) },
+  async (args) => { try { return { content: [{ type: "text", text: JSON.stringify(contextOptimizer.optimize(args)) }] }; } catch (error) { return toolError(error); } },
 );
 
 server.tool(
