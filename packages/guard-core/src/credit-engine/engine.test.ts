@@ -119,3 +119,13 @@ test("settlement is idempotent when the same actual cost is replayed", async () 
   assert.equal(first.id, replay.id);
   assert.equal((await engine.getStatus("project-i")).spentMicros, 250);
 });
+
+test("lists reservations by project and status for recovery", async () => {
+  const engine = new CreditEngine();
+  await engine.createProjectBudget({ projectId: "list-p", budgetMicros: 1_000_000 });
+  const reservation = await engine.reserve({ projectId: "list-p", estimatedCostMicros: 100_000, idempotencyKey: "list-1" });
+  assert.equal((await engine.listReservations("list-p", "RESERVED")).length, 1);
+  await engine.release(reservation.id);
+  assert.equal((await engine.listReservations("list-p", "RESERVED")).length, 0);
+  assert.equal((await engine.listReservations("list-p", "RELEASED")).length, 1);
+});
