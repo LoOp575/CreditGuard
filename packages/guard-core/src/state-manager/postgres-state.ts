@@ -95,7 +95,7 @@ export class PostgresLoopStore {
   }
   async assess(projectId:string,now=Date.now()):Promise<LoopAssessment>{
     const r=await this.pool.query(`SELECT kind,signature,extract(epoch from occurred_at)*1000 AS at FROM cg_loop_events
-      WHERE project_id=$1 AND occurred_at >= to_timestamp($2/1000.0) - ($3::bigint * interval '1 millisecond')
+      WHERE project_id=$1 AND occurred_at >= to_timestamp($2::double precision/1000.0) - ($3::bigint * interval '1 millisecond')
       ORDER BY occurred_at DESC`,[projectId,now,this.config.windowMs]);
     const events=r.rows as Array<{kind:LoopEvent["kind"];signature:string|null;at:string|number}>;
     const errors=events.filter(x=>x.kind==="error");
