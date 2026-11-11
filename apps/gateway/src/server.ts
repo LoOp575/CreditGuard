@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { PostgresCreditLedger, PostgresProjectStore, PostgresLoopStore, DecisionEngine } from "@credit-guard/guard-core";
+import type { DecisionPolicyConfig } from "@credit-guard/guard-core";
 import type { Pool } from "pg";
 import { createProviderAdapters, type ProviderAdapter, type ProviderName, type ProviderResult } from "./provider-adapters.js";
 import { estimateCostMicros, actualCostMicros as calculateActualCostMicros, resolveCheaperFallback, type ModelPricing } from "./pricing.js";
@@ -12,6 +13,7 @@ export interface GatewayConfig {
   pricing: Record<string,ModelPricing>;
   modelFallbacks: Record<string,string>;
   safetyMultiplier: number;
+  decisionPolicy?: Partial<DecisionPolicyConfig>;
   adapters?: Record<ProviderName,ProviderAdapter>;
 }
 export function constantTimeTokenMatch(received:string|string[]|undefined,expected:string|string[]):boolean{
@@ -32,7 +34,7 @@ export function createGatewayServer(config:GatewayConfig){
   const ledger=new PostgresCreditLedger(pool);
   const projectStore=new PostgresProjectStore(pool);
   const loopStore=new PostgresLoopStore(pool);
-  const decisionEngine=new DecisionEngine();
+  const decisionEngine=new DecisionEngine(config.decisionPolicy);
   const adapters=config.adapters??createProviderAdapters();
   const app=Fastify({logger:false,bodyLimit:2*1024*1024});
   app.get("/health",async()=>({service:"credit-guard-gateway",status:"ok",mode:"enforced-proxy",providers:Object.keys(adapters)}));
