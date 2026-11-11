@@ -14,12 +14,13 @@
 ## Rotate a project Gateway token
 
 1. Generate a new cryptographically random token of at least 32 bytes.
-2. Replace that project's value in `GATEWAY_PROJECT_TOKENS_JSON`.
-3. Restart/redeploy Gateway with the new secret.
-4. Update the Agent's Gateway token configuration.
-5. Verify the old token receives HTTP 401.
+2. Add the new token alongside the old token in that project's array in `GATEWAY_PROJECT_TOKENS_JSON`.
+3. Restart/redeploy Gateway. Both tokens are now accepted during the overlap window.
+4. Update the Agent's Gateway token configuration to the new token and verify a controlled request.
+5. Remove the old token from the array and redeploy.
+6. Verify the old token receives HTTP 401 and the new token still works.
 
-The current configuration supports one active token per project, so rotation requires coordinated client/server deployment. Do not put tokens in prompts, checkpoint payloads, logs, or source control.
+Keep the overlap window short. Never log either token or place it in prompts/checkpoints. Do not put tokens in prompts, checkpoint payloads, logs, or source control.
 
 ## Rotate a provider key
 
