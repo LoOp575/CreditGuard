@@ -18,7 +18,7 @@ function classifyCodingTask(prompt: string): "build" | "debug" | "modify" | "opt
   if (/\b(integrasi|integrasikan|integrate|integration|hubungkan|connect|webhook|api pihak ketiga|integrar|criar integração|intégrer|integrieren)\b/.test(value)) return "integrate";
   if (/\b(analisis|analisa|audit|review|inspect|investigasi|jelaskan kode|analizar|analisar|analyser|analysieren)\b/.test(value)) return "analyze";
   if (/\b(ubah|tambahkan|tambah|modifikasi|update|perbarui|ubah fitur|modify|extend|modificar|alterar|modifier|ändern)\b/.test(value)) return "modify";
-  if (/\b(buat|bangun|build|develop|create|kembangkan|bikin|implementasikan|crear|construir|criar|développer|erstellen|bauen)\b/.test(value)) return "build";
+  if (/\b(buat|bangun|build|develop|create|kembangkan|bikin|implementasikan|crear|construir|criar|créer|développer|erstellen|bauen)\b/.test(value)) return "build";
   return "other";
 }
 
