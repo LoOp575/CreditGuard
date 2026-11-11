@@ -44,6 +44,9 @@ export function createGatewayServer(config:GatewayConfig){
       if(!projectId.trim())return reply.code(400).send({error:"PROJECT_REQUIRED"});
       const expectedToken=projectTokens[projectId];
       if(!expectedToken||!constantTimeTokenMatch(request.headers["x-credit-guard-token"],expectedToken))return reply.code(401).send({error:"UNAUTHORIZED"});
+      const clientIdempotencyKey=request.headers["x-idempotency-key"];
+      if(typeof clientIdempotencyKey!=="string"||clientIdempotencyKey.length<8||clientIdempotencyKey.length>128)
+        return reply.code(400).send({error:"IDEMPOTENCY_KEY_REQUIRED",header:"x-idempotency-key",minLength:8,maxLength:128});
       if(!Object.hasOwn(adapters,provider))return reply.code(400).send({error:"UNSUPPORTED_PROVIDER"});
       const apiKey=providerKeys[`${provider}:${projectId}`];
       if(!apiKey)return reply.code(503).send({error:"PROVIDER_KEY_NOT_CONFIGURED",provider,projectId});
@@ -64,6 +67,19 @@ export function createGatewayServer(config:GatewayConfig){
       let estimatedCostMicros=estimateCostMicros(inputCharacters,maxTokens,rate,safetyMultiplier).costMicros;
       let optimizedFrom:string|undefined;
       let availableMicros=0;
+      const requestId=randomUUID();
+      try{
+        await pool.query("INSERT INTO cg_gateway_requests(request_id,project_id,client_idempotency_key,provider,model,status,estimated_cost_micros) VALUES($1,$2,$3,$4,$5,'STARTED',$6)",
+          [requestId,projectId,clientIdempotencyKey,provider,body.model,String(estimatedCostMicros)]);
+      }catch(error){
+        if((error as {code?:string})?.code==="23505"){
+          const existing=await pool.query("SELECT request_id,status,reservation_id FROM cg_gateway_requests WHERE project_id=$1 AND client_idempotency_key=$2",
+            [projectId,clientIdempotencyKey]);
+          return reply.code(409).send({error:"IDEMPOTENCY_REPLAY",existing:existing.rows[0]??null,
+            message:"This idempotency key was already used. Use a new key for a new logical request."});
+        }
+        return reply.code(503).send({error:"AUDIT_CLAIM_FAILED"});
+      }
       let loopAssessment;
       try{
         loopAssessment=await loopStore.record({projectId,kind:"request"});
@@ -76,27 +92,35 @@ export function createGatewayServer(config:GatewayConfig){
         if(decision.action==="OPTIMIZE"){
           const fallback=resolveCheaperFallback({provider,requestedModel:body.model,fallbacks:modelFallbacks,pricing,
             inputCharacters,maxOutputTokens:maxTokens,safetyMultiplier,requestedCostMicros:estimatedCostMicros,availableMicros});
-          if(!fallback)return reply.code(409).send({error:"GUARD_OPTIMIZATION_REQUIRED",decision,
-            recommendation:"Configure an affordable cheaper model in MODEL_FALLBACKS_JSON or reduce context/output tokens."});
+          if(!fallback){
+            await pool.query("UPDATE cg_gateway_requests SET status='POLICY_BLOCKED',updated_at=now() WHERE request_id=$1",[requestId]);
+            return reply.code(409).send({error:"GUARD_OPTIMIZATION_REQUIRED",requestId,decision,
+              recommendation:"Configure an affordable cheaper model in MODEL_FALLBACKS_JSON or reduce context/output tokens."});
+          }
           dispatchModel=fallback.model;dispatchRate=fallback.rate;
           estimatedCostMicros=fallback.costMicros;optimizedFrom=body.model;
         }else if(decision.action!=="ALLOW"){
-          return reply.code(409).send({error:"GUARD_DECISION",decision});
+          await pool.query("UPDATE cg_gateway_requests SET status='POLICY_BLOCKED',updated_at=now() WHERE request_id=$1",[requestId]);
+          return reply.code(409).send({error:"GUARD_DECISION",requestId,decision});
         }
       }catch(error){
-        return reply.code(404).send({error:"PROJECT_OR_BUDGET_NOT_CONFIGURED",message:error instanceof Error?error.message:"Project state unavailable"});
+        await pool.query("UPDATE cg_gateway_requests SET status='POLICY_BLOCKED',updated_at=now() WHERE request_id=$1",[requestId]);
+        return reply.code(404).send({error:"PROJECT_OR_BUDGET_NOT_CONFIGURED",requestId,message:error instanceof Error?error.message:"Project state unavailable"});
       }
-      const idempotencyKey=randomUUID();
+      const ledgerIdempotencyKey="gateway:"+clientIdempotencyKey;
       let reservation: Awaited<ReturnType<PostgresCreditLedger["reserve"]>>;
-      try{reservation=await ledger.reserve({projectId,estimatedCostMicros:Math.max(1,estimatedCostMicros),idempotencyKey});}
-      catch(error){return reply.code(402).send({error:error instanceof Error?error.message:"CREDIT_RESERVATION_FAILED"});}
-      const requestId=randomUUID();
+      try{reservation=await ledger.reserve({projectId,estimatedCostMicros:Math.max(1,estimatedCostMicros),idempotencyKey:ledgerIdempotencyKey});}
+      catch(error){
+        await pool.query("UPDATE cg_gateway_requests SET status='RESERVATION_REJECTED',updated_at=now() WHERE request_id=$1",[requestId]);
+        return reply.code(402).send({error:error instanceof Error?error.message:"CREDIT_RESERVATION_FAILED",requestId});
+      }
       try{
-        await pool.query("INSERT INTO cg_gateway_requests(request_id,project_id,reservation_id,provider,model,status,estimated_cost_micros) VALUES($1,$2,$3,$4,$5,'STARTED',$6)",
-          [requestId,projectId,reservation.id,provider,dispatchModel,String(estimatedCostMicros)]);
+        await pool.query("UPDATE cg_gateway_requests SET reservation_id=$2,model=$3,estimated_cost_micros=$4,updated_at=now() WHERE request_id=$1",
+          [requestId,reservation.id,dispatchModel,String(estimatedCostMicros)]);
       }catch{
         await ledger.release(reservation.id);
-        return reply.code(503).send({error:"AUDIT_WRITE_FAILED",warning:"Provider request was not dispatched; reservation released."});
+        await pool.query("UPDATE cg_gateway_requests SET status='RESERVATION_REJECTED',updated_at=now() WHERE request_id=$1",[requestId]);
+        return reply.code(503).send({error:"AUDIT_RESERVATION_LINK_FAILED",requestId,warning:"Provider request was not dispatched; reservation released."});
       }
       let result:ProviderResult;
       try{
