@@ -10,7 +10,10 @@ import { z } from "zod";
 let projectEngine: ProjectEngine | PostgresProjectStore;
 let loopGuard: LoopGuard | PostgresLoopStore;
 let checkpointStore: InMemoryCheckpointStore | PostgresCheckpointStore;
-const decisionEngine = new DecisionEngine();
+const decisionEngine = new DecisionEngine({
+  lowRemainingBudgetPercent: Number(process.env.GUARD_LOW_REMAINING_BUDGET_PERCENT ?? "10"),
+  lowProgressPercent: Number(process.env.GUARD_LOW_PROGRESS_PERCENT ?? "10"),
+});
 const contextOptimizer = new ContextOptimizer();
 
 const server = new McpServer({
