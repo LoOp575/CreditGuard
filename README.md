@@ -121,3 +121,26 @@ Credit Guard exposes `guard.approval.request`, `guard.approval.get`, `guard.appr
 The guard-core package exports `executeWithGuard` and `createActionScopeFingerprint`. A trusted tool handler wraps its real dispatch function with this adapter. It computes a SHA-256 fingerprint from the action class and canonicalized payload, asks a trusted authorization callback, and invokes the handler only when the callback returns `allowed: true`.
 
 The authorization callback must read approval state from a trusted server-side source. Never trust an Agent-supplied authorization boolean or fingerprint. Compute the fingerprint immediately before dispatch from the exact payload that will be executed. Keep the dispatch function private and do not expose an alternate unguarded route. If the authorization service errors or is unavailable, execution stops. This is a reusable reference adapter, not a global OS sandbox: it cannot intercept arbitrary third-party tools, direct shell access, or provider calls that bypass the Gateway. Every integration must wrap all relevant execution paths.
+
+
+## Guarded Agent filesystem adapter
+
+The workspace package `@credit-guard/agent-adapter` provides `GuardedFilesystemAdapter` for a bounded local workspace. Create it with a canonical workspace root, project ID, and an authorization callback that calls the trusted Credit Guard `guard.action.authorize` service. All writes, overwrites, and deletes pass through `executeWithGuard`; denied or unavailable authorization prevents the filesystem mutation. New files map to `FILE_WRITE`, existing files to `FILE_OVERWRITE`, and removals to `FILE_DELETE`. Read operations reject symlink targets and use no-follow file opens.
+
+Example integration outline:
+
+```ts
+import { GuardedFilesystemAdapter } from "@credit-guard/agent-adapter";
+
+// authorize must call the trusted MCP/server-side policy endpoint.
+// It must return the parsed authorization response, not an Agent assertion.
+const files = await GuardedFilesystemAdapter.create({
+  rootDirectory: "/workspace/project",
+  projectId: "project-123",
+  authorize: async (request) => trustedPolicyClient.authorize(request),
+});
+
+await files.write("src/example.ts", "export const ready = true;");
+```
+
+This adapter is a reference integration for one filesystem boundary, not a complete operating-system sandbox. It does not control shell commands, database clients, deployment tools, other processes, or provider traffic. Keep the authorization credential outside the Agent, do not expose unguarded filesystem handles to the Agent, and use an OS/container sandbox against hostile concurrent local processes. Run CI before relying on a deployment.
