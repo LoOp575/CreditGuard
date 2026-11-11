@@ -3,12 +3,12 @@ import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { PostgresCreditLedger } from "@credit-guard/guard-core";
 import { createProviderAdapters, type ProviderName, type ProviderResult } from "./provider-adapters.js";
+import { estimateCostMicros, actualCostMicros as calculateActualCostMicros } from "./pricing.js";
 
-type Pricing={inputUsdPerMillion:number;outputUsdPerMillion:number};
 const databaseUrl=process.env.DATABASE_URL;
 const projectTokens:Record<string,string>=JSON.parse(process.env.GATEWAY_PROJECT_TOKENS_JSON??"{}");
 const providerKeys:Record<string,string>=JSON.parse(process.env.PROVIDER_API_KEYS_JSON??"{}");
-const pricing:Record<string,Pricing>=JSON.parse(process.env.PROVIDER_PRICING_JSON??"{}");
+const pricing:Record<string,{inputUsdPerMillion:number;outputUsdPerMillion:number}>=JSON.parse(process.env.PROVIDER_PRICING_JSON??"{}");
 const safetyMultiplier=Number(process.env.ESTIMATE_SAFETY_MULTIPLIER??"1.5");
 if(!databaseUrl)throw new Error("DATABASE_URL is required for enforced Gateway mode");
 if(!Object.keys(projectTokens).length||Object.values(projectTokens).some(token=>typeof token!=="string"||token.length<24))
@@ -47,9 +47,9 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
     if(!rate||!Number.isFinite(rate.inputUsdPerMillion)||!Number.isFinite(rate.outputUsdPerMillion)||rate.inputUsdPerMillion<0||rate.outputUsdPerMillion<0)
       return reply.code(503).send({error:"PRICING_NOT_CONFIGURED",model:body.model,provider});
     // Conservative character-based estimate. Provider-reported usage is authoritative after completion.
-    const inputCharacters=JSON.stringify(body.messages).length;
-    const estimatedInputTokens=Math.ceil(inputCharacters/3);
-    const estimatedCostMicros=Math.ceil((estimatedInputTokens*rate.inputUsdPerMillion+maxTokens*rate.outputUsdPerMillion)*safetyMultiplier);
+    const estimate=estimateCostMicros(JSON.stringify(body.messages).length,maxTokens,rate,safetyMultiplier);
+    const estimatedInputTokens=estimate.inputTokens;
+    const estimatedCostMicros=estimate.costMicros;
     const idempotencyKey=randomUUID();
     let reservation: Awaited<ReturnType<PostgresCreditLedger["reserve"]>>;
     try{reservation=await ledger.reserve({projectId,estimatedCostMicros:Math.max(1,estimatedCostMicros),idempotencyKey});}
@@ -72,7 +72,7 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
     }
     let actualCostMicros:number|null=null;
     if(result.usage){
-      actualCostMicros=Math.ceil(result.usage.inputTokens*rate.inputUsdPerMillion+result.usage.outputTokens*rate.outputUsdPerMillion);
+      actualCostMicros=calculateActualCostMicros(result.usage,rate);
       try{await ledger.settle(reservation.id,actualCostMicros);}
       catch{
         await pool.query("UPDATE cg_gateway_requests SET status='RECONCILIATION_ERROR',actual_cost_micros=$2,input_tokens=$3,output_tokens=$4,updated_at=now() WHERE request_id=$1",
