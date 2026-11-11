@@ -133,3 +133,17 @@ export class PostgresCheckpointStore {
     return {checkpointId:r.rows[0].checkpoint_id,version:r.rows[0].version,payload:r.rows[0].payload,createdAt:new Date(r.rows[0].created_at).toISOString()};
   }
 }
+
+export class InMemoryCheckpointStore {
+  private readonly checkpoints = new Map<string, Array<{checkpointId:string;version:number;payload:unknown;createdAt:string}>>();
+  async save(projectId:string,payload:{goal:string;nextStep:string;artifactRefs:string[];errors:string[];modelConfig:Record<string,unknown>}){
+    if(!payload.goal.trim()||!payload.nextStep.trim())throw new TypeError("goal and nextStep are required");
+    const rows=this.checkpoints.get(projectId)??[];
+    const row={checkpointId:"checkpoint_"+(rows.length+1),version:rows.length+1,payload:structuredClone(payload),createdAt:new Date().toISOString()};
+    rows.push(row);this.checkpoints.set(projectId,rows);return row;
+  }
+  async latest(projectId:string){
+    const rows=this.checkpoints.get(projectId)??[];
+    return rows.length?structuredClone(rows[rows.length-1]):null;
+  }
+}
