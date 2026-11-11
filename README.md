@@ -67,6 +67,7 @@ docker compose up -d postgres
 psql "postgresql://credit_guard:local_dev_only_change_me@localhost:5432/credit_guard" -f database/migrations/001_credit_ledger.sql
 psql "postgresql://credit_guard:local_dev_only_change_me@localhost:5432/credit_guard" -f database/migrations/002_project_loop_checkpoint.sql
 psql "postgresql://credit_guard:local_dev_only_change_me@localhost:5432/credit_guard" -f database/migrations/003_gateway_audit.sql
+psql "postgresql://credit_guard:local_dev_only_change_me@localhost:5432/credit_guard" -f database/migrations/004_approval_gate.sql
 
 # Start MCP
 pnpm --filter @credit-guard/mcp-server dev
