@@ -73,3 +73,10 @@ These tools complement the existing Loop Guard, Context Optimizer, Project Engin
 The Approval Gate records explicit decisions for scope, architecture, destructive, production, spending-limit, and security-sensitive actions. Requests are idempotent and expire; approvals bind to a project and exact scope fingerprint. The PostgreSQL ledger is authoritative when configured. Resolution requires `APPROVAL_AUTHORITY_TOKEN`, which belongs only to a trusted human approval interface/operator and must never enter Agent context. The check is fail-closed for missing, pending, rejected, expired, or mismatched approvals.
 
 The MCP implementation exposes the request/get/resolve/check contract. It is not yet a universal action firewall: a model-controlled Agent can ignore a check or use an unmediated tool. Hard enforcement requires the Agent Integration Orchestrator to gate every privileged tool adapter and keep approval authority outside the model's reach. The Gateway currently does not intercept arbitrary non-provider actions.
+
+
+## Universal Intent Engine
+
+Prompt preparation uses a task-agnostic intent schema so the system is not limited to website creation. The schema captures task type (build, debug, modify, optimize, analyze, integrate, or other), target, objective, requirements, explicit constraints, available project context, expected output, and verification approach. Deterministic phrase rules provide a conservative first-pass classification; they are not multilingual or general-purpose semantic understanding. Unsupported or ambiguous intent must retain the original prompt and be flagged for review. The original request remains authoritative, and inferred requirements must never silently become approved scope.
+
+The intent schema is independent of programming language and framework. Target detection is a lightweight hint only; Agents must inspect the actual repository and project artifacts before acting. Token savings must be measured with the destination model tokenizer and provider usage, while preserving enough context to complete and verify the requested task.
