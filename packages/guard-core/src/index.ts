@@ -7,3 +7,4 @@ export * from "./context-optimizer/index.js";
 export * from "./state-manager/index.js";
 export * from "./intelligence/index.js";
 export * from "./orchestrator.js";
+export * from "./action-adapter.js";
