@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CreditEngine, CreditEngineError } from "@credit-guard/guard-core";
+import { CreditEngine, CreditEngineError, PostgresCreditLedger } from "@credit-guard/guard-core";
+import { Pool } from "pg";
 import { z } from "zod";
 
 const server = new McpServer({
@@ -8,7 +9,25 @@ const server = new McpServer({
   version: "0.1.0",
 });
 
-const creditEngine = new CreditEngine();
+const databaseUrl = process.env.DATABASE_URL;
+let creditEngine: CreditEngine | PostgresCreditLedger;
+let ledgerMode: string;
+
+if (databaseUrl) {
+  const pool = new Pool({ connectionString: databaseUrl, max: 10 });
+  const schemaCheck = await pool.query(
+    "SELECT to_regclass('public.cg_projects') AS projects, to_regclass('public.cg_reservations') AS reservations",
+  );
+  if (!schemaCheck.rows[0]?.projects || !schemaCheck.rows[0]?.reservations) {
+    await pool.end();
+    throw new Error("Credit Guard PostgreSQL schema is missing. Apply database/migrations/001_credit_ledger.sql first.");
+  }
+  creditEngine = new PostgresCreditLedger(pool);
+  ledgerMode = "postgresql (durable, transactional)";
+} else {
+  creditEngine = new CreditEngine();
+  ledgerMode = "in-memory (non-durable, single-process; development only)";
+}
 
 function toolError(error: unknown) {
   const code = error instanceof CreditEngineError ? error.code : "INTERNAL_ERROR";
@@ -32,7 +51,7 @@ server.tool(
         version: "0.1.0",
         mode: "foundation",
         enforcement: "advisory-only",
-        ledger: "in-memory (non-durable, single-process)",
+        ledger: ledgerMode,
       }),
     }],
   }),
