@@ -38,15 +38,20 @@ test("Gateway authenticates, reserves, settles, falls back, and intervenes on re
       await ledger.createProjectBudget({projectId:id,budgetMicros:i===1?1000:1_000_000});
       await projects.create({id,goal:"gateway integration"});
     }
-    const headers=(id:string,auth=token)=>({"x-credit-guard-project":id,"x-credit-guard-token":auth,"x-credit-guard-provider":"openai"});
+    const headers=(id:string,auth=token,key=randomUUID())=>({"x-credit-guard-project":id,"x-credit-guard-token":auth,"x-credit-guard-provider":"openai","x-idempotency-key":key});
     const payload=(model:string)=>({model,messages:[{role:"user",content:"test"}],max_tokens:100});
     const denied=await app.inject({method:"POST",url:"/v1/chat/completions",headers:headers(ids[0],"wrong-token"),payload:payload("normal-model")});
     assert.equal(denied.statusCode,401);
 
-    const success=await app.inject({method:"POST",url:"/v1/chat/completions",headers:headers(ids[0]),payload:payload("normal-model")});
+    const successKey=randomUUID();
+    const success=await app.inject({method:"POST",url:"/v1/chat/completions",headers:headers(ids[0],token,successKey),payload:payload("normal-model")});
     assert.equal(success.statusCode,200);
     assert.equal(success.json().creditGuard.settled,true);
     assert.equal((await ledger.getStatus(ids[0])).spentMicros,20);
+    const replay=await app.inject({method:"POST",url:"/v1/chat/completions",headers:headers(ids[0],token,successKey),payload:payload("normal-model")});
+    assert.equal(replay.statusCode,409);
+    assert.equal(replay.json().error,"IDEMPOTENCY_REPLAY");
+    assert.equal(calls.filter(x=>x==="normal-model").length,1);
 
     const fallback=await app.inject({method:"POST",url:"/v1/chat/completions",headers:headers(ids[1]),payload:payload("expensive-model")});
     assert.equal(fallback.statusCode,200);
