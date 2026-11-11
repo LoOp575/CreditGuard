@@ -16,8 +16,8 @@
 - [x] PostgreSQL schema and durable ledger adapter implemented
 - [x] MCP DATABASE_URL selection with explicit in-memory development fallback
 - [x] PostgreSQL migration and adapter integration tests in CI
-- [x] Concurrent reservation test against PostgreSQL
-- [ ] Distributed load, crash-recovery, and failover tests
+- [x] Cross-pool concurrent reservation and durable-recovery test against PostgreSQL
+- [ ] Multi-process load, crash-recovery, and failover tests
 
 ## Phase 3: Project + Loop Engine
 - [x] Project lifecycle and evidence-based progress
