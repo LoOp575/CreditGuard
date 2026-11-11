@@ -31,6 +31,7 @@
 - [x] Budget + progress-aware decisions
 - [x] Loop-aware pause and checkpoint recommendations
 - [x] Context selection under a character budget
+- [x] Cheaper-model fallback when the estimate is over/near remaining credit and a configured fallback is cheaper and affordable
 - [ ] Configurable policy profiles and broader evaluation matrix
 
 ## Phase 5: Gateway enforcement
@@ -40,6 +41,7 @@
 - [x] Project-scoped Gateway tokens
 - [x] Provider keys isolated to Gateway-side secret configuration
 - [x] PostgreSQL request outcome audit without prompt/key storage
+- [x] Reservation recovery and unresolved Gateway request tools
 - [ ] Automated end-to-end provider tests with mocked upstreams
 - [ ] Key rotation workflow and production secret-manager deployment
 
