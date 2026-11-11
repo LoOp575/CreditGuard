@@ -57,6 +57,7 @@ test("Gateway authenticates, reserves, settles, falls back, and intervenes on re
     assert.equal(fallback.statusCode,200);
     assert.equal(fallback.json().creditGuard.actualModel,"cheap-model");
     assert.equal(fallback.json().creditGuard.optimized,true);
+    assert.equal(fallback.json().creditGuard.optimizationReason,"INSUFFICIENT_CREDIT_TRY_LOWER_COST");
 
     for(let i=0;i<2;i++){
       const failed=await app.inject({method:"POST",url:"/v1/chat/completions",headers:headers(ids[2]),payload:payload("error-model")});
