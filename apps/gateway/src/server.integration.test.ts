@@ -45,7 +45,7 @@ test("Gateway authenticates, reserves, settles, falls back, and intervenes on re
 
     const successKey=randomUUID();
     const success=await app.inject({method:"POST",url:"/v1/chat/completions",headers:headers(ids[0],token,successKey),payload:payload("normal-model")});
-    assert.equal(success.statusCode,200);
+    assert.equal(success.statusCode,200,success.body);
     assert.equal(success.json().creditGuard.settled,true);
     assert.equal((await ledger.getStatus(ids[0])).spentMicros,20);
     const replay=await app.inject({method:"POST",url:"/v1/chat/completions",headers:headers(ids[0],token,successKey),payload:payload("normal-model")});
