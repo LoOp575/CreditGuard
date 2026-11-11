@@ -85,7 +85,7 @@ function inferObjective(prompt: string, category: TaskCategory): string {
   const value = prompt.toLowerCase();
   if (/website|web\s*app|situs/.test(value) && /toko online|e-?commerce|jualan online|belanja online/.test(value)) return "Website toko online";
   if (/website|web\s*app|situs/.test(value)) return "Website";
-  if (/aplikasi|mobile app/.test(value)) return "Aplikasi";
+  if (/aplikasi|aplicación|aplicativo|application|mobile app/.test(value)) return "Application";
   if (/\bapi\b|backend|layanan server/.test(value)) return "API / backend service";
   if (category === "software_project") return "Software project";
   return category === "general" ? "User's stated task" : category.replace("_", " ");
