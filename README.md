@@ -22,7 +22,7 @@ It helps agents estimate usage, reserve project budgets, detect wasteful retry l
 6. Persistent retry/loop protection and no-progress detection.
 7. Decision engine: ALLOW, OPTIMIZE, INTERVENE, CHECKPOINT_PAUSE, BLOCK.
 8. Context selection under a character budget.
-9. Provider gateway enforcement remains the next major phase.
+9. Provider gateway enforcement with BYOK credential isolation.
 
 ## Planned stack
 
@@ -30,7 +30,7 @@ It helps agents estimate usage, reserve project budgets, detect wasteful retry l
 - Official Model Context Protocol TypeScript SDK
 - PostgreSQL as the durable source of truth for budgets and reservations
 - Redis later for counters, loop state, and fast ephemeral coordination
-- Fastify for the future provider gateway
+- Fastify for the provider gateway
 - OpenTelemetry for observability
 
 ## Repository layout
@@ -38,7 +38,7 @@ It helps agents estimate usage, reserve project budgets, detect wasteful retry l
 ```text
 apps/
   mcp-server/       MCP interface
-  gateway/          Future provider proxy/enforcement layer
+  gateway/          Provider proxy and enforcement layer
   worker/           Future async reconciliation and jobs
 packages/
   guard-core/       Credit, project, loop, decision, optimizer logic
