@@ -1,6 +1,6 @@
 export interface ContextSection { id: string; content: string; priority: number; required?: boolean; }
 export interface ContextOptimizeInput { sections: ContextSection[]; maxCharacters: number; }
-export interface ContextOptimizeResult { text: string; includedIds: string[]; omittedIds: string[]; inputCharacters: number; outputCharacters: number; reductionPercent: number; }
+export interface ContextOptimizeResult { text: string; includedIds: string[]; omittedIds: string[]; inputCharacters: number; outputCharacters: number; reductionPercent: number; limitExceeded: boolean; }
 export class ContextOptimizer {
   optimize(input: ContextOptimizeInput): ContextOptimizeResult {
     if (!Number.isSafeInteger(input.maxCharacters) || input.maxCharacters < 0) throw new TypeError("maxCharacters must be a non-negative integer");
@@ -26,6 +26,7 @@ export class ContextOptimizer {
     const text = included.map(s => `[${s.id}]\n${s.content}`).join("\n\n");
     const outputCharacters = included.reduce((n,s) => n+s.content.length,0);
     return { text, includedIds: included.map(s=>s.id), omittedIds, inputCharacters, outputCharacters,
-      reductionPercent: inputCharacters ? Math.round((1-outputCharacters/inputCharacters)*10000)/100 : 0 };
+      reductionPercent: inputCharacters ? Math.round((1-outputCharacters/inputCharacters)*10000)/100 : 0,
+      limitExceeded: outputCharacters > input.maxCharacters };
   }
 }
