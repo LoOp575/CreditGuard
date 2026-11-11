@@ -5,15 +5,20 @@
   "type": "module",
   "exports": {
     ".": "./dist/index.js",
-    "./credit-engine": "./dist/credit-engine/index.js"
+    "./credit-engine": "./dist/credit-engine/index.js",
+    "./postgres": "./dist/credit-engine/postgres.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "tsx --test src/**/*.test.ts"
   },
+  "dependencies": {
+    "pg": "^8.16.0"
+  },
   "devDependencies": {
     "@types/node": "^22.15.30",
+    "@types/pg": "^8.15.4",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }
