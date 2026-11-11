@@ -45,11 +45,18 @@ export function registerApprovalTools(server: McpServer, pool?: Pool) {
         const record:ApprovalRecord={id:randomUUID(),projectId:args.projectId,action:args.action,title:args.title,details:args.details,
           scopeFingerprint:args.scopeFingerprint,idempotencyKey:args.idempotencyKey,status:"PENDING",
           requestedAt:now.toISOString(),expiresAt:new Date(now.getTime()+expiresInMinutes*60000).toISOString()};
-        if (pool) await pool.query(`INSERT INTO cg_approval_requests
-          (approval_id,project_id,action,title,details,scope_fingerprint,idempotency_key,status,expires_at)
-          VALUES($1,$2,$3,$4,$5,$6,$7,'PENDING',$8)`,
-          [record.id,record.projectId,record.action,record.title,record.details,record.scopeFingerprint,record.idempotencyKey,record.expiresAt]);
-        else memory.set(record.id,record);
+        if (pool) {
+          const inserted=await pool.query(`INSERT INTO cg_approval_requests
+            (approval_id,project_id,action,title,details,scope_fingerprint,idempotency_key,status,expires_at)
+            VALUES($1,$2,$3,$4,$5,$6,$7,'PENDING',$8)
+            ON CONFLICT (project_id,idempotency_key) DO NOTHING RETURNING approval_id`,
+            [record.id,record.projectId,record.action,record.title,record.details,record.scopeFingerprint,record.idempotencyKey,record.expiresAt]);
+          if (!inserted.rowCount) {
+            const existing=await pool.query("SELECT approval_id FROM cg_approval_requests WHERE project_id=$1 AND idempotency_key=$2",[record.projectId,record.idempotencyKey]);
+            if (existing.rowCount) return {content:[{type:"text",text:JSON.stringify(await get(existing.rows[0].approval_id))}]};
+            throw new Error("APPROVAL_IDEMPOTENCY_CONFLICT");
+          }
+        } else memory.set(record.id,record);
         return {content:[{type:"text",text:JSON.stringify({ ...record, instruction:"PAUSE_ACTION_UNTIL_APPROVED" })}]};
       } catch(error) { return {isError:true,content:[{type:"text",text:error instanceof Error?error.message:"APPROVAL_REQUEST_FAILED"}]}; }
     });
