@@ -39,6 +39,7 @@ Headers:
 - `x-credit-guard-project`
 - `x-credit-guard-token`
 - `x-credit-guard-provider`: `openai`, `anthropic`, or `google`
+- `x-idempotency-key`: unique 8-128 character key for each logical provider request. Reuse the same key when retrying the same logical request; the Gateway returns the existing request status without redispatching.
 
 Body: `{ "model": "...", "messages": [{"role":"user","content":"..."}], "max_tokens": 1024 }`.
 
