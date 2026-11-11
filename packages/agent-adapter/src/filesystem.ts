@@ -1,5 +1,5 @@
 import { constants } from "node:fs";
-import { lstat, mkdir, open, readFile, realpath, unlink } from "node:fs/promises";
+import { lstat, open, readFile, realpath, unlink } from "node:fs/promises";
 import path from "node:path";
 import { executeWithGuard, type ActionAuthorization, type GuardedAction } from "@credit-guard/guard-core";
 
@@ -73,7 +73,7 @@ export class GuardedFilesystemAdapter {
     }
     const action: GuardedAction = exists ? "FILE_OVERWRITE" : "FILE_WRITE";
     const result = await executeWithGuard(
-      { projectId: this.projectId, action, payload: { path: relativePath, content } },
+      { projectId: this.projectId, action, payload: { path: relativePath, content }, approvalId },
       this.authorize,
       async () => {
         const flags = exists ? constants.O_WRONLY | constants.O_TRUNC | (constants.O_NOFOLLOW ?? 0) : constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0);
