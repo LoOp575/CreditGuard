@@ -6,10 +6,11 @@
 2. Apply migrations 001, 002, and 003 in order.
 3. Configure `DATABASE_URL`.
 4. Create a lifecycle project and credit budget with the same project ID through MCP.
-5. Configure one project-scoped Gateway token and provider keys in a secret manager.
-6. Configure verified model rates in `PROVIDER_PRICING_JSON`. Configure cheaper same-provider alternatives in `MODEL_FALLBACKS_JSON` where desired.
-7. Start MCP and Gateway. Keep Gateway bound to loopback unless it is placed behind an authenticated TLS reverse proxy.
-8. Remove or revoke direct provider credentials from any Agent that must be restricted to the Gateway.
+5. Configure `EVIDENCE_VERIFIER_TOKEN` for a trusted verifier/operator. Never expose it to the Agent.
+6. Configure one project-scoped Gateway token and provider keys in a secret manager.
+7. Configure verified model rates in `PROVIDER_PRICING_JSON`. Configure cheaper same-provider alternatives in `MODEL_FALLBACKS_JSON` where desired.
+8. Start MCP and Gateway. Keep Gateway bound to loopback unless it is placed behind an authenticated TLS reverse proxy.
+9. Remove or revoke direct provider credentials from any Agent that must be restricted to the Gateway.
 
 ## Rotate a project Gateway token
 
