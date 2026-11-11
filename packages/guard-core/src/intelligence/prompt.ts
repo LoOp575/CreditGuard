@@ -167,6 +167,18 @@ export function preparePrompt(input: PromptPreparationInput): PreparedPrompt {
   ];
 
   const normalizedGoal = originalPrompt.replace(/\s+/g, " ").trim();
+
+  const intent = {
+    taskType,
+    target,
+    objective,
+    requirements: [...new Set([...suggestedRequirements, ...optimized.prompt.split("\\n").slice(1).flatMap(line => line.startsWith("Requirements: ") ? line.slice(14).split("; ") : [])])],
+    constraints: explicitConstraints,
+    context: [...techStack, ...(projectMode === "unknown" ? [] : [`project_mode:${projectMode}`])],
+    expectedOutput: taskType === "debug" ? ["Root cause", "Minimal fix", "Regression test or reproducible verification"] : taskType === "analyze" ? ["Findings", "Evidence", "Prioritized recommendations"] : ["Requested software change or deliverable"],
+    verification: taskType === "debug" || taskType === "modify" || taskType === "optimize" ? ["Run relevant tests", "Check for regressions", "Report evidence and limitations"] : ["Validate deliverable against explicit requirements", "Report evidence and limitations"],
+  };
+
   const techLine = techStack.length ? techStack.join(", ") : "Not specified; do not assume.";
   const constraintLines = explicitConstraints.length ? explicitConstraints.map(x => `- ${x}`).join("\n") : "- No additional constraints supplied.";
   const questionLines = unknowns.length ? unknowns.map(x => `- [${x.importance}] ${x.question}`).join("\n") : "- No blocking questions identified by the deterministic pre-check.";
