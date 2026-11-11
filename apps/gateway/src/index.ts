@@ -1,5 +1,5 @@
 import Fastify from "fastify";
-import { randomUUID } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import { Pool } from "pg";
 import { PostgresCreditLedger, PostgresProjectStore, PostgresLoopStore, DecisionEngine } from "@credit-guard/guard-core";
 import { createProviderAdapters, type ProviderName, type ProviderResult } from "./provider-adapters.js";
@@ -11,6 +11,11 @@ const providerKeys:Record<string,string>=JSON.parse(process.env.PROVIDER_API_KEY
 const pricing:Record<string,{inputUsdPerMillion:number;outputUsdPerMillion:number}>=JSON.parse(process.env.PROVIDER_PRICING_JSON??"{}");
 const modelFallbacks:Record<string,string>=JSON.parse(process.env.MODEL_FALLBACKS_JSON??"{}");
 const safetyMultiplier=Number(process.env.ESTIMATE_SAFETY_MULTIPLIER??"1.5");
+function constantTimeTokenMatch(received:string|undefined,expected:string):boolean{
+  if(!received)return false;
+  const a=Buffer.from(received);const b=Buffer.from(expected);
+  return a.length===b.length&&timingSafeEqual(a,b);
+}
 if(!databaseUrl)throw new Error("DATABASE_URL is required for enforced Gateway mode");
 if(!Object.keys(projectTokens).length||Object.values(projectTokens).some(token=>typeof token!=="string"||token.length<24))
   throw new Error("GATEWAY_PROJECT_TOKENS_JSON must map project IDs to tokens of at least 24 characters");
@@ -34,7 +39,7 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
     const provider=String(request.headers["x-credit-guard-provider"]??"") as ProviderName;
     if(!projectId.trim())return reply.code(400).send({error:"PROJECT_REQUIRED"});
     const expectedToken=projectTokens[projectId];
-    if(!expectedToken||request.headers["x-credit-guard-token"]!==expectedToken)return reply.code(401).send({error:"UNAUTHORIZED"});
+    if(!expectedToken||!constantTimeTokenMatch(request.headers["x-credit-guard-token"],expectedToken))return reply.code(401).send({error:"UNAUTHORIZED"});
     // Provider keys are loaded only by the Gateway process, never sent by the Agent.
     if(!Object.hasOwn(adapters,provider))return reply.code(400).send({error:"UNSUPPORTED_PROVIDER"});
     const apiKey=providerKeys[`${provider}:${projectId}`];
