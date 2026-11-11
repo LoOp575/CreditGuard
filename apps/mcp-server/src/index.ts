@@ -382,7 +382,7 @@ server.tool(
 
 server.tool(
   "guard.prompt.prepare",
-  "Prepare a structured execution brief from a raw user prompt. Suggestions are explicitly marked and must not be treated as approved requirements.",
+  "Extract user intent and return a concise optimizedPrompt plus semantic interpretations. The Agent should send optimizedPrompt to the primary model when requiresSemanticReview is false; if true, retain the original request and resolve ambiguity before execution. Suggestions are explicitly marked and must not be treated as approved requirements.",
   {
     rawPrompt: z.string().min(1).max(20000),
     projectMode: z.enum(["new", "existing", "unknown"]).optional(),
