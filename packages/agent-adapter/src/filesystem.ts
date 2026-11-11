@@ -1,5 +1,5 @@
 import { constants } from "node:fs";
-import { lstat, open, readFile, realpath, unlink } from "node:fs/promises";
+import { lstat, open, realpath, unlink } from "node:fs/promises";
 import path from "node:path";
 import { executeWithGuard, type ActionAuthorization, type GuardedAction } from "@credit-guard/guard-core";
 
@@ -58,7 +58,8 @@ export class GuardedFilesystemAdapter {
     const target = await this.resolveTarget(relativePath);
     const info = await lstat(target);
     if (info.isSymbolicLink() || !info.isFile()) throw new Error("UNSAFE_FILE_TARGET");
-    return readFile(target, "utf8");
+    const handle = await open(target, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+    try { return await handle.readFile("utf8"); } finally { await handle.close(); }
   }
 
   async write(relativePath: string, content: string, approvalId?: string): Promise<FileOperationResult> {
