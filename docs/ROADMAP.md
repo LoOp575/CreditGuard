@@ -34,10 +34,14 @@
 - [ ] Configurable policy profiles and broader evaluation matrix
 
 ## Phase 5: Gateway enforcement
-- [ ] Fastify gateway
-- [ ] Provider adapter interface
-- [ ] OpenAI, Anthropic, and Google adapters
-- [ ] Credential isolation and request audit
+- [x] Fastify Gateway HTTP service
+- [x] Provider adapter interface
+- [x] OpenAI, Anthropic, and Google adapters
+- [x] Project-scoped Gateway tokens
+- [x] Provider keys isolated to Gateway-side secret configuration
+- [x] PostgreSQL request outcome audit without prompt/key storage
+- [ ] Automated end-to-end provider tests with mocked upstreams
+- [ ] Key rotation workflow and production secret-manager deployment
 
 ## Phase 6: Validation
 - [x] PostgreSQL integration tests in CI
