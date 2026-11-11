@@ -73,6 +73,13 @@ pnpm --filter @credit-guard/gateway dev
 
 Copy `.env.example` to `.env` when environment configuration is needed. Never commit API keys or provider credentials.
 
+## Documentation
+
+- [MCP tool reference and operating workflow](docs/MCP_TOOLS.md)
+- [Gateway deployment and security configuration](apps/gateway/README.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Roadmap](docs/ROADMAP.md)
+
 ## Security
 
 - Do not store provider API keys in project state or logs.
