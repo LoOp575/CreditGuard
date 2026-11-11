@@ -9,6 +9,22 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: credit_guard_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d credit_guard_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/credit_guard_test
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -18,6 +34,10 @@ jobs:
         with:
           node-version: 20
       - run: pnpm install --no-frozen-lockfile
+      - name: Apply database migrations
+        run: |
+          PGPASSWORD=postgres psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f database/migrations/001_credit_ledger.sql
+          PGPASSWORD=postgres psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f database/migrations/002_project_loop_checkpoint.sql
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
