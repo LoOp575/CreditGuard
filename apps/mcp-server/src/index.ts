@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
-dotenv.config({ path: "../../.env" });
+import { fileURLToPath } from "node:url";
+dotenv.config({ path: fileURLToPath(new URL("../../../.env", import.meta.url)) });
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CreditEngine, CreditEngineError, PostgresCreditLedger, ProjectEngine, LoopGuard, DecisionEngine, ContextOptimizer, PostgresProjectStore, PostgresLoopStore, PostgresCheckpointStore, InMemoryCheckpointStore } from "@credit-guard/guard-core";
