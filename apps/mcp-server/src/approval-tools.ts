@@ -20,14 +20,29 @@ const actionSchema = z.enum(["SCOPE_CHANGE", "ARCHITECTURE_CHANGE", "DESTRUCTIVE
 export function registerApprovalTools(server: McpServer, pool?: Pool) {
   const authorityToken = process.env.APPROVAL_AUTHORITY_TOKEN;
   async function get(id: string): Promise<ApprovalRecord | null> {
-    if (!pool) return memory.get(id) ?? null;
-    const q = await pool.query("SELECT * FROM cg_approval_requests WHERE approval_id=$1", [id]);
-    if (!q.rowCount) return null;
-    const r = q.rows[0];
-    return { id:r.approval_id, projectId:r.project_id, action:r.action, title:r.title, details:r.details,
-      scopeFingerprint:r.scope_fingerprint, idempotencyKey:r.idempotency_key, status:r.status,
-      requestedAt:new Date(r.requested_at).toISOString(), expiresAt:new Date(r.expires_at).toISOString(),
-      resolvedAt:r.resolved_at ? new Date(r.resolved_at).toISOString() : undefined, resolutionNote:r.resolution_note ?? undefined };
+    let record: ApprovalRecord | null;
+    if (!pool) {
+      record = memory.get(id) ?? null;
+    } else {
+      const q = await pool.query("SELECT * FROM cg_approval_requests WHERE approval_id=$1", [id]);
+      if (!q.rowCount) return null;
+      const r = q.rows[0];
+      record = { id:r.approval_id, projectId:r.project_id, action:r.action, title:r.title, details:r.details,
+        scopeFingerprint:r.scope_fingerprint, idempotencyKey:r.idempotency_key, status:r.status,
+        requestedAt:new Date(r.requested_at).toISOString(), expiresAt:new Date(r.expires_at).toISOString(),
+        resolvedAt:r.resolved_at ? new Date(r.resolved_at).toISOString() : undefined, resolutionNote:r.resolution_note ?? undefined };
+    }
+    // Expiry applies to APPROVED records too, not only pending requests.
+    if (record && record.status !== "EXPIRED" && Date.now() >= Date.parse(record.expiresAt)) {
+      if (pool) {
+        await pool.query(
+          "UPDATE cg_approval_requests SET status='EXPIRED' WHERE approval_id=$1 AND status IN ('PENDING','APPROVED') AND expires_at<=now()",
+          [id],
+        );
+      }
+      record.status = "EXPIRED";
+    }
+    return record;
   }
 
   server.tool("guard.approval.request",
