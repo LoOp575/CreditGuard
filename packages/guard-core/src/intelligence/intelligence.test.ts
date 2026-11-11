@@ -96,3 +96,34 @@ test("ambiguous or unsupported prompt remains flagged for semantic review", () =
   const result = preparePrompt({ rawPrompt: "Tolong bikin sesuatu yang bagus dan beda", projectMode: "new" });
   assert.equal(result.requiresSemanticReview, true);
 });
+test("universal intent schema classifies bug fixing and preserves target and verification", () => {
+  const result = preparePrompt({
+    rawPrompt: "Tolong perbaiki bug login di aplikasi Android. Tombol login terus loading. Jangan ubah alur autentikasi yang sudah ada.",
+    projectMode: "existing",
+    techStack: ["Kotlin"],
+  });
+  assert.equal(result.intent.taskType, "debug");
+  assert.match(result.intent.target, /application/);
+  assert.ok(result.intent.constraints.some(item => item.includes("Jangan ubah")));
+  assert.ok(result.intent.verification.some(item => item.includes("regressions")));
+  assert.equal(result.originalPrompt.includes("Tombol login terus loading"), true);
+});
+
+test("universal intent schema supports tool creation, optimization, analysis, and integration", () => {
+  const build = preparePrompt({ rawPrompt: "Buat tool CLI untuk memantau log server", projectMode: "new" });
+  const optimize = preparePrompt({ rawPrompt: "Optimalkan kode parser agar lebih cepat", projectMode: "existing" });
+  const analyze = preparePrompt({ rawPrompt: "Audit keamanan API dan jelaskan temuan", projectMode: "existing" });
+  const integrate = preparePrompt({ rawPrompt: "Integrasikan webhook Telegram ke backend", projectMode: "existing" });
+  assert.equal(build.intent.taskType, "build");
+  assert.match(build.intent.target, /developer tool/);
+  assert.equal(optimize.intent.taskType, "optimize");
+  assert.equal(analyze.intent.taskType, "analyze");
+  assert.equal(integrate.intent.taskType, "integrate");
+});
+
+test("universal intent schema supports modifying an existing feature", () => {
+  const result = preparePrompt({ rawPrompt: "Tambahkan fitur export CSV ke dashboard admin", projectMode: "existing" });
+  assert.equal(result.intent.taskType, "modify");
+  assert.ok(result.intent.expectedOutput.length > 0);
+  assert.ok(result.intent.verification.length > 0);
+});
