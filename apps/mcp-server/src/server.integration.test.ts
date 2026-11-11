@@ -12,8 +12,10 @@ test("MCP server completes initialize and exposes expected tools",async()=>{
   const lines=createInterface({input:child.stdout});
   const iterator=lines[Symbol.asyncIterator]();
   const next=async()=>{
-    const timeout=new Promise<never>((_,reject)=>setTimeout(()=>reject(new Error("MCP response timed out")),10000));
+    let timer: ReturnType<typeof setTimeout>;
+    const timeout=new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error("MCP response timed out")),10000);});
     const item=await Promise.race([iterator.next(),timeout]);
+    clearTimeout(timer!);
     if(item.done)throw new Error("MCP server closed stdout unexpectedly");
     return JSON.parse(item.value);
   };
