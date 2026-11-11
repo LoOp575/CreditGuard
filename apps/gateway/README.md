@@ -17,7 +17,7 @@ Before using a project, create both records through MCP with the same ID: `guard
 ## Required configuration
 
 - `DATABASE_URL`: PostgreSQL connection.
-- `GATEWAY_PROJECT_TOKENS_JSON`: map project IDs to random tokens of at least 24 characters.
+- `GATEWAY_PROJECT_TOKENS_JSON`: map project IDs to one random token or a non-empty array of overlapping tokens; each token must be at least 24 characters.
 - `PROVIDER_API_KEYS_JSON`: map `provider:projectId` to provider API key.
 - `PROVIDER_PRICING_JSON`: map `provider:model` to verified input/output USD-per-million-token rates.
 - `MODEL_FALLBACKS_JSON`: optional same-provider fallback map from `provider:requestedModel` to a cheaper model.
@@ -26,12 +26,12 @@ Before using a project, create both records through MCP with the same ID: `guard
 Example shapes (replace all values with secrets and current provider rates):
 
 ```json
-GATEWAY_PROJECT_TOKENS_JSON={"project-a":"REPLACE_WITH_RANDOM_TOKEN_AT_LEAST_24_CHARS"}
+GATEWAY_PROJECT_TOKENS_JSON={"project-a":["CURRENT_RANDOM_TOKEN_AT_LEAST_24_CHARS","NEXT_RANDOM_TOKEN_AT_LEAST_24_CHARS"]}
 PROVIDER_API_KEYS_JSON={"openai:project-a":"REPLACE_WITH_PROVIDER_SECRET"}
 PROVIDER_PRICING_JSON={"openai:MODEL_ID":{"inputUsdPerMillion":1,"outputUsdPerMillion":2}}
 ```
 
-The pricing numbers above are format examples only, not current price claims. Missing model pricing causes a fail-closed response.
+The pricing numbers above are format examples only, not current price claims. Missing model pricing causes a fail-closed response. During project-token rotation, configure both old and new tokens temporarily, deploy, update the Agent, then remove the old token and redeploy.
 
 ## Request
 
