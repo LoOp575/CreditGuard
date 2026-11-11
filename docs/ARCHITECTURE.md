@@ -6,7 +6,7 @@ Advisory MCP mode:
 
 `Agent -> Credit Guard MCP tools -> recommendation -> Agent`
 
-Enforced Gateway mode (planned next phase):
+Enforced Gateway mode:
 
 `Agent -> project-scoped Gateway token -> Fastify Gateway -> policy + PostgreSQL reservation -> provider adapter -> AI provider`
 
@@ -18,7 +18,7 @@ MCP is a protocol interface, not a network firewall. An agent that retains direc
 - **Project Engine:** project lifecycle, milestones, verified artifacts, checkpoints.
 - **Loop Guard:** repeated errors, retries, lack of progress, and bounded execution.
 - **Decision Engine:** ALLOW, OPTIMIZE, INTERVENE, CHECKPOINT_PAUSE, BLOCK.
-- **Context Optimizer:** safe context reduction and output limits.
+- **Context Optimizer:** deterministic context-section selection under a character budget.
 - **Provider Adapters:** normalized provider requests and usage records.
 - **Audit:** explainable decisions without logging secrets.
 
@@ -30,9 +30,9 @@ Progress must be supported by observable evidence such as test results, file cha
 
 ## Persistence implementation status
 
-Money is represented as integer USD micros (1 USD = 1,000,000 micros). `PostgresCreditLedger` stores budgets and reservations transactionally, locks the project row during reservation, and enforces unique `(project_id, idempotency_key)` keys. `PostgresProjectStore` persists project lifecycle, milestones, and evidence. `PostgresLoopStore` persists retry/error/progress events. `PostgresCheckpointStore` saves versioned resume payloads. The MCP server selects these PostgreSQL adapters when `DATABASE_URL` is configured and verifies both migrations at startup. Without a database URL, it uses explicitly reported in-memory development adapters.
+Money is represented as integer USD micros (1 USD = 1,000,000 micros). `PostgresCreditLedger` stores budgets and reservations transactionally, locks the project row during reservation, and enforces unique `(project_id, idempotency_key)` keys. `PostgresProjectStore` persists project lifecycle, milestones, and evidence. `PostgresLoopStore` persists retry/error/progress events. `PostgresCheckpointStore` saves versioned resume payloads. The MCP server selects these PostgreSQL adapters when `DATABASE_URL` is configured and verifies the required migrations at startup. Without a database URL, it uses explicitly reported in-memory development adapters.
 
-CI applies both migrations to PostgreSQL 16 and runs integration tests for concurrent reservation, settlement, project evidence, loop detection, and checkpoint retrieval. This automated coverage does not replace production load testing, crash/failover testing, threat modeling, or security review. Redis is not the authoritative credit ledger.
+CI applies the PostgreSQL migrations to PostgreSQL 16 and runs integration tests for concurrent reservation, settlement, project evidence, loop detection, and checkpoint retrieval. This automated coverage does not replace production load testing, crash/failover testing, threat modeling, or security review. Redis is not the authoritative credit ledger.
 
 ## Gateway enforcement
 
@@ -42,7 +42,7 @@ Input-token estimation is heuristic, not tokenizer-exact. A configured safety mu
 
 ## Budget safety
 
-A future Gateway reservation must be atomic. Concurrent requests must not both spend the same remaining balance. After provider completion, reconcile the reservation against actual usage. A failed HTTP request is not automatically free; provider billing records determine whether a charge occurred.
+The Gateway reserves estimated cost atomically before dispatch. Concurrent requests cannot reserve beyond the same project's available budget. After provider completion, provider-reported usage is reconciled against the reservation. A failed HTTP request is not automatically free; provider billing records determine whether a charge occurred. Requests require project-scoped idempotency keys, and duplicate keys never redispatch the provider.
 
 ## Decision semantics
 
