@@ -7,7 +7,7 @@ import { createGatewayServer } from "./server.js";
 import type { ProviderAdapter, ProviderName } from "./provider-adapters.js";
 
 const url=process.env.TEST_DATABASE_URL;
-test("Gateway authenticates, reserves, settles, falls back, and pauses repeated errors",{skip:!url},async()=>{
+test("Gateway authenticates, reserves, settles, falls back, and intervenes on repeated errors",{skip:!url},async()=>{
   const pool=new Pool({connectionString:url});
   const ids=["gw_normal_","gw_fallback_","gw_loop_"].map(x=>x+randomUUID());
   const token="gateway-test-token-0123456789abcdef";
@@ -53,14 +53,14 @@ test("Gateway authenticates, reserves, settles, falls back, and pauses repeated 
     assert.equal(fallback.json().creditGuard.actualModel,"cheap-model");
     assert.equal(fallback.json().creditGuard.optimized,true);
 
-    for(let i=0;i<3;i++){
+    for(let i=0;i<2;i++){
       const failed=await app.inject({method:"POST",url:"/v1/chat/completions",headers:headers(ids[2]),payload:payload("error-model")});
       assert.equal(failed.statusCode,500);
     }
     const paused=await app.inject({method:"POST",url:"/v1/chat/completions",headers:headers(ids[2]),payload:payload("error-model")});
     assert.equal(paused.statusCode,409);
-    assert.equal(paused.json().decision.action,"CHECKPOINT_PAUSE");
-    assert.equal(calls.filter(x=>x==="error-model").length,3);
+    assert.equal(paused.json().decision.action,"INTERVENE");
+    assert.equal(calls.filter(x=>x==="error-model").length,2);
   }finally{
     await app.close();
     await pool.query("DELETE FROM cg_gateway_requests WHERE project_id = ANY($1::text[])",[ids]);
