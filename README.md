@@ -59,13 +59,16 @@ Requirements: Node.js 20+ and pnpm.
 ```bash
 pnpm install
 
-# Optional local PostgreSQL
+# Create local environment file (PowerShell: Copy-Item .env.example .env)
+cp .env.example .env
+# Start local PostgreSQL
 docker compose up -d postgres
-# Apply both migrations using psql or your migration runner:
-# psql "$DATABASE_URL" -f database/migrations/001_credit_ledger.sql
-# psql "$DATABASE_URL" -f database/migrations/002_project_loop_checkpoint.sql
-# psql "$DATABASE_URL" -f database/migrations/003_gateway_audit.sql
-# Then start MCP or Gateway.
+# Apply all migrations with psql:
+psql "postgresql://credit_guard:local_dev_only_change_me@localhost:5432/credit_guard" -f database/migrations/001_credit_ledger.sql
+psql "postgresql://credit_guard:local_dev_only_change_me@localhost:5432/credit_guard" -f database/migrations/002_project_loop_checkpoint.sql
+psql "postgresql://credit_guard:local_dev_only_change_me@localhost:5432/credit_guard" -f database/migrations/003_gateway_audit.sql
+
+# Start MCP
 pnpm --filter @credit-guard/mcp-server dev
 # In another terminal, after Gateway secrets and pricing are configured:
 pnpm --filter @credit-guard/gateway dev
