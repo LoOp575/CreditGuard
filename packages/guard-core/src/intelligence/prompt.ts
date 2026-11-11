@@ -4,6 +4,37 @@ function unique(values: string[]): string[] {
   return [...new Set(values.map(value => value.trim()).filter(Boolean))];
 }
 
+function classifyCodingTask(prompt: string): "build" | "debug" | "modify" | "optimize" | "analyze" | "integrate" | "other" {
+  const value = prompt.toLowerCase();
+  if (/\\b(debug|bug|error|fix|perbaiki|perbaikan|gagal|crash|errornya)\\b/.test(value)) return "debug";
+  if (/\\b(optimasi|optimalkan|optimize|optimization|lebih cepat|lebih ringan|refactor|rapikan kode)\\b/.test(value)) return "optimize";
+  if (/\\b(integrasi|integrate|integration|hubungkan|connect|webhook|api pihak ketiga)\\b/.test(value)) return "integrate";
+  if (/\\b(analisis|analisa|audit|review|inspect|investigasi|jelaskan kode)\\b/.test(value)) return "analyze";
+  if (/\\b(ubah|tambahkan|tambah|modifikasi|update|perbarui|ubah fitur|modify|extend)\\b/.test(value)) return "modify";
+  if (/\\b(buat|bangun|build|develop|create|kembangkan|bikin|implementasikan)\\b/.test(value)) return "build";
+  return "other";
+}
+
+function inferTarget(prompt: string): string {
+  const value = prompt.toLowerCase();
+  const targets: string[] = [];
+  const rules: Array<[RegExp, string]> = [
+    [/\\b(website|web app|situs|frontend|front-end)\\b/, "web application"],
+    [/\\b(api|backend|back-end|server)\\b/, "API / backend service"],
+    [/\\b(database|basis data|postgres|mysql|mongodb|sqlite)\\b/, "database"],
+    [/\\b(bot|telegram bot|discord bot)\\b/, "automation bot"],
+    [/\\b(tool|utility|cli|command line)\\b/, "developer tool"],
+    [/\\b(aplikasi|app|mobile|android|ios)\\b/, "application"],
+    [/\\b(library|package|sdk|module)\\b/, "software library / module"],
+    [/\\b(script|otomasi|automation)\\b/, "script / automation"],
+    [/\\b(test|testing|unit test|integration test)\\b/, "test suite"],
+    [/\\b(config|konfigurasi|deployment|deploy|ci\\/cd)\\b/, "configuration / deployment"],
+    [/\\b(komponen|component|ui|ux)\\b/, "software component / UI"],
+  ];
+  for (const [pattern, target] of rules) if (pattern.test(value)) targets.push(target);
+  return [...new Set(targets)].join(", ") || "existing or requested software component (inspect context)";
+}
+
 function classify(prompt: string): TaskCategory {
   const value = prompt.toLowerCase();
   if (/\b(debug|bug|error|fix|perbaiki|perbaikan|gagal|crash)\b/.test(value)) return "bug_fix";
@@ -109,7 +140,7 @@ export function preparePrompt(input: PromptPreparationInput): PreparedPrompt {
   if (!originalPrompt) throw new TypeError("rawPrompt must not be empty");
   if (originalPrompt.length > 20_000) throw new RangeError("rawPrompt exceeds the 20000 character limit");
 
-  const category = classify(originalPrompt);
+  const category = classify(originalPrompt);\n  const taskType = classifyCodingTask(originalPrompt);\n  const target = inferTarget(originalPrompt);
   const projectMode = input.projectMode ?? "unknown";
   const techStack = unique(input.techStack ?? []);
   const explicitConstraints = unique(input.constraints ?? []);
@@ -147,7 +178,7 @@ export function preparePrompt(input: PromptPreparationInput): PreparedPrompt {
     "ORIGINAL USER REQUEST (authoritative; preserve meaning):",
     originalPrompt,
     "",
-    `TASK CATEGORY: ${category}`,
+    `TASK CATEGORY: ${category}`,\n    `CODING TASK TYPE: ${taskType}`,\n    `TARGET: ${target}`,
     `PROJECT MODE: ${projectMode}`,
     `TECH STACK: ${techLine}`,
     "",
@@ -167,5 +198,5 @@ export function preparePrompt(input: PromptPreparationInput): PreparedPrompt {
     ...executionRules.map(rule => `- ${rule}`),
   ].join("\n");
 
-  return { version: "1", originalPrompt, normalizedGoal, objective, semanticInterpretations, optimizedPrompt: optimized.prompt, requiresSemanticReview: optimized.requiresReview, category, projectMode, explicitConstraints, unknowns, suggestedRequirements, tasks, executionRules, refinedPrompt };
+  return { version: "1", originalPrompt, normalizedGoal, objective, intent, semanticInterpretations, optimizedPrompt: optimized.prompt, requiresSemanticReview: optimized.requiresReview, category, projectMode, explicitConstraints, unknowns, suggestedRequirements, tasks, executionRules, refinedPrompt };
 }
