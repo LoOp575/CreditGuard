@@ -11,8 +11,8 @@ const providerKeys:Record<string,string>=JSON.parse(process.env.PROVIDER_API_KEY
 const pricing:Record<string,{inputUsdPerMillion:number;outputUsdPerMillion:number}>=JSON.parse(process.env.PROVIDER_PRICING_JSON??"{}");
 const modelFallbacks:Record<string,string>=JSON.parse(process.env.MODEL_FALLBACKS_JSON??"{}");
 const safetyMultiplier=Number(process.env.ESTIMATE_SAFETY_MULTIPLIER??"1.5");
-function constantTimeTokenMatch(received:string|undefined,expected:string):boolean{
-  if(!received)return false;
+function constantTimeTokenMatch(received:string|string[]|undefined,expected:string):boolean{
+  if(typeof received!=="string")return false;
   const a=Buffer.from(received);const b=Buffer.from(expected);
   return a.length===b.length&&timingSafeEqual(a,b);
 }
