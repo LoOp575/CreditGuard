@@ -124,7 +124,7 @@ server.tool(
 
 server.tool(
   "guard.project.verify_evidence",
-  "Mark evidence verified after an external test, artifact, or file check has actually been inspected. This tool trusts the caller and is not a cryptographic verifier.",
+  "Mark evidence verified using a separate verifier secret held by a trusted operator or verifier integration. This tool does not independently inspect artifacts.",
   { projectId: z.string().min(1), milestoneId: z.string().min(1), reference: z.string().min(1), verificationSource: z.string().min(1), verifierToken: z.string().min(24) },
   async ({ projectId, milestoneId, reference, verificationSource, verifierToken }) => { try {
     if (!evidenceVerifierToken) throw new Error("EVIDENCE_VERIFIER_NOT_CONFIGURED");
