@@ -3,7 +3,7 @@ import { randomUUID, timingSafeEqual } from "node:crypto";
 import { Pool } from "pg";
 import { PostgresCreditLedger, PostgresProjectStore, PostgresLoopStore, DecisionEngine } from "@credit-guard/guard-core";
 import { createProviderAdapters, type ProviderName, type ProviderResult } from "./provider-adapters.js";
-import { estimateCostMicros, actualCostMicros as calculateActualCostMicros } from "./pricing.js";
+import { estimateCostMicros, actualCostMicros as calculateActualCostMicros, resolveCheaperFallback } from "./pricing.js";
 
 const databaseUrl=process.env.DATABASE_URL;
 const projectTokens:Record<string,string>=JSON.parse(process.env.GATEWAY_PROJECT_TOKENS_JSON??"{}");
@@ -72,16 +72,12 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
       const decision=decisionEngine.decide({credit,projectState:project.state,progressPercent:progress.percent,progressTracked:progress.total>0,
         estimatedCostMicros,loop:loopAssessment,checkpointAvailable:true});
       if(decision.action==="OPTIMIZE"){
-        const fallbackModel=modelFallbacks[`${provider}:${body.model}`];
-        const fallbackRate=fallbackModel?pricing[`${provider}:${fallbackModel}`]:undefined;
-        if(!fallbackModel||!fallbackRate)return reply.code(409).send({error:"GUARD_OPTIMIZATION_REQUIRED",decision,
-          recommendation:"Configure a cheaper model in MODEL_FALLBACKS_JSON or reduce context/output tokens."});
-        const fallbackEstimate=estimateCostMicros(inputCharacters,maxTokens,fallbackRate,safetyMultiplier);
-        if(fallbackEstimate.costMicros>=estimatedCostMicros||fallbackEstimate.costMicros>availableMicros)
-          return reply.code(409).send({error:"NO_AFFORDABLE_FALLBACK",decision,requestedModel:body.model,fallbackModel,
-            fallbackEstimatedCostMicros:fallbackEstimate.costMicros,availableMicros});
-        dispatchModel=fallbackModel;dispatchRate=fallbackRate;
-        estimatedCostMicros=fallbackEstimate.costMicros;optimizedFrom=body.model;
+        const fallback=resolveCheaperFallback({provider,requestedModel:body.model,fallbacks:modelFallbacks,pricing,
+          inputCharacters,maxOutputTokens:maxTokens,safetyMultiplier,requestedCostMicros:estimatedCostMicros,availableMicros});
+        if(!fallback)return reply.code(409).send({error:"GUARD_OPTIMIZATION_REQUIRED",decision,
+          recommendation:"Configure an affordable cheaper model in MODEL_FALLBACKS_JSON or reduce context/output tokens."});
+        dispatchModel=fallback.model;dispatchRate=fallback.rate;
+        estimatedCostMicros=fallback.costMicros;optimizedFrom=body.model;
       }else if(decision.action!=="ALLOW"){
         return reply.code(409).send({error:"GUARD_DECISION",decision});
       }
