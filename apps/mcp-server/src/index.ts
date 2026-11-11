@@ -396,6 +396,7 @@ server.tool(
   "guard.failure.analyze",
   "Analyze whether a failure repeats a previously failed strategy. Supply prior attempts from the project checkpoint or execution history.",
   {
+    projectId: z.string().min(1),
     errorSignature: z.string().min(1),
     strategySignature: z.string().min(1),
     maxSameStrategyFailures: z.number().int().positive().optional(),
@@ -407,7 +408,9 @@ server.tool(
   },
   async (args) => {
     try {
-      return { content: [{ type: "text", text: JSON.stringify(analyzeFailure(args)) }] };
+      const analysis = analyzeFailure(args);
+      const loop = await loopGuard.record({ projectId: args.projectId, kind: "error", signature: `${args.errorSignature.trim().toLowerCase()}::${args.strategySignature.trim().toLowerCase()}` });
+      return { content: [{ type: "text", text: JSON.stringify({ ...analysis, action: loop.action === "PAUSE" ? "PAUSE" : analysis.action, persistentLoopAssessment: loop }) }] };
     } catch (error) { return toolError(error); }
   },
 );
