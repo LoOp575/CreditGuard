@@ -6,14 +6,16 @@ import { createGatewayServer } from "./server.js";
 import type { ModelPricing } from "./pricing.js";
 
 const databaseUrl=process.env.DATABASE_URL;
-const projectTokens:Record<string,string>=JSON.parse(process.env.GATEWAY_PROJECT_TOKENS_JSON??"{}");
+const projectTokens:Record<string,string|string[]>=JSON.parse(process.env.GATEWAY_PROJECT_TOKENS_JSON??"{}");
 const providerKeys:Record<string,string>=JSON.parse(process.env.PROVIDER_API_KEYS_JSON??"{}");
 const pricing:Record<string,ModelPricing>=JSON.parse(process.env.PROVIDER_PRICING_JSON??"{}");
 const modelFallbacks:Record<string,string>=JSON.parse(process.env.MODEL_FALLBACKS_JSON??"{}");
 const safetyMultiplier=Number(process.env.ESTIMATE_SAFETY_MULTIPLIER??"1.5");
 if(!databaseUrl)throw new Error("DATABASE_URL is required for enforced Gateway mode");
-if(!Object.keys(projectTokens).length||Object.values(projectTokens).some(token=>typeof token!=="string"||token.length<24))
-  throw new Error("GATEWAY_PROJECT_TOKENS_JSON must map project IDs to tokens of at least 24 characters");
+if(!Object.keys(projectTokens).length||Object.values(projectTokens).some(value=>{
+  const tokens=Array.isArray(value)?value:[value];
+  return tokens.length<1||tokens.some(token=>typeof token!=="string"||token.length<24);
+})) throw new Error("GATEWAY_PROJECT_TOKENS_JSON must map project IDs to a token or non-empty token array; every token must be at least 24 characters");
 if(!Number.isFinite(safetyMultiplier)||safetyMultiplier<1||safetyMultiplier>5)
   throw new Error("ESTIMATE_SAFETY_MULTIPLIER must be between 1 and 5");
 
