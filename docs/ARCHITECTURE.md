@@ -26,7 +26,7 @@ MCP is a protocol interface, not a network firewall. An agent that retains direc
 
 CREATED, PLANNING, EXECUTING, VERIFYING, COMPLETED, PAUSED, BLOCKED, FAILED.
 
-Progress must be supported by observable evidence such as test results, file changes, generated artifacts, or completed milestones. Evidence is recorded as unverified first. A trusted operator or integration must verify it before a milestone completes. The current MCP verification tool trusts its caller and does not independently inspect artifacts.
+Progress must be supported by observable evidence such as test results, file changes, generated artifacts, or completed milestones. Evidence is recorded as unverified first. A separate `EVIDENCE_VERIFIER_TOKEN` is required to mark it verified, and that secret must remain outside the Agent's context. The MCP tool does not independently inspect artifacts; a trusted verifier integration must check CI runs, artifact hashes, repository diffs, or other authoritative sources.
 
 ## Persistence implementation status
 
