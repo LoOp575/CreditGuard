@@ -76,3 +76,23 @@ test("an explicit framework in the prompt avoids a redundant stack question", ()
   const result = preparePrompt({ rawPrompt: "Buatkan website menggunakan Next.js", projectMode: "new" });
   assert.ok(!result.unknowns.some(item => item.key === "tech_stack"));
 });
+
+\ntest("prompt preparation maps natural Indonesian design language into concise technical requirements", () => {
+  const result = preparePrompt({
+    rawPrompt: "Buat website toko online yang bagus, modern, enak dipandang, tidak kaku, nyaman dibuka di HP, dan menyesuaikan layar. Ada katalog produk, keranjang, checkout, QRIS, transfer bank, dashboard admin untuk produk, harga, stok, dan pesanan.",
+    projectMode: "new",
+  });
+  assert.equal(result.objective, "Website toko online");
+  assert.ok(result.semanticInterpretations.some(item => item.userPhrase === "Bagus / indah / keren" && item.interpretation === "High-quality visual design"));
+  assert.ok(result.semanticInterpretations.some(item => item.interpretation === "Responsive design"));
+  assert.ok(result.optimizedPrompt.includes("Product catalog"));
+  assert.ok(result.optimizedPrompt.includes("QRIS payment"));
+  assert.ok(result.optimizedPrompt.includes("Mobile-friendly user experience"));
+  assert.equal(result.requiresSemanticReview, false);
+  assert.ok(result.originalPrompt.includes("tidak kaku"));
+});
+
+test("ambiguous or unsupported prompt remains flagged for semantic review", () => {
+  const result = preparePrompt({ rawPrompt: "Tolong bikin sesuatu yang bagus dan beda", projectMode: "new" });
+  assert.equal(result.requiresSemanticReview, true);
+});
