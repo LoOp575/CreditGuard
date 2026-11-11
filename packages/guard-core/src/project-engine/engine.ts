@@ -44,6 +44,20 @@ export class ProjectEngine {
     if (e.verified) { m.completed = true; m.completedAt = e.recordedAt; }
     p.version++; p.updatedAt = e.recordedAt; return structuredClone(p);
   }
+  verifyEvidence(input: { projectId: string; milestoneId: string; reference: string; verificationSource: string }): GuardProject {
+    const p = this.require(input.projectId);
+    if (!input.verificationSource.trim()) throw new TypeError("verificationSource is required");
+    const m = p.milestones.find(x => x.id === input.milestoneId);
+    if (!m) throw new Error("MILESTONE_NOT_FOUND");
+    const e = [...m.evidence].reverse().find(x => x.reference === input.reference);
+    if (!e) throw new Error("EVIDENCE_NOT_FOUND");
+    e.verified = true;
+    m.completed = true;
+    m.completedAt = new Date().toISOString();
+    p.version++;
+    p.updatedAt = m.completedAt;
+    return structuredClone(p);
+  }
   progress(projectId: string): { completed: number; total: number; percent: number; requiredComplete: boolean } {
     const p = this.require(projectId); const total = p.milestones.length;
     const completed = p.milestones.filter(m => m.completed).length;
