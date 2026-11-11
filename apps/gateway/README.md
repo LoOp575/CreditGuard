@@ -22,6 +22,8 @@ Before using a project, create both records through MCP with the same ID: `guard
 - `PROVIDER_PRICING_JSON`: map `provider:model` to verified input/output USD-per-million-token rates.
 - `MODEL_FALLBACKS_JSON`: optional same-provider fallback map from `provider:requestedModel` to a cheaper model.
 - `ESTIMATE_SAFETY_MULTIPLIER`: optional estimate buffer, default 1.5.
+- `GUARD_LOW_REMAINING_BUDGET_PERCENT`: trigger optimization below this percentage of original budget, default 10.
+- `GUARD_LOW_PROGRESS_PERCENT`: trigger low-progress intervention below this verified milestone percentage, default 10.
 
 Example shapes (replace all values with secrets and current provider rates):
 
