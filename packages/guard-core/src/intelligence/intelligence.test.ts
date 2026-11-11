@@ -66,3 +66,13 @@ test("quality assessment passes when all checks pass with evidence", () => {
   assert.equal(result.status, "PASS");
   assert.equal(result.score, 100);
 });
+
+test("general software prompts do not receive payment-specific questions", () => {
+  const result = preparePrompt({ rawPrompt: "Buatkan aplikasi catatan sederhana", projectMode: "new" });
+  assert.ok(!result.unknowns.some(item => item.key === "payment_provider"));
+});
+
+test("an explicit framework in the prompt avoids a redundant stack question", () => {
+  const result = preparePrompt({ rawPrompt: "Buatkan website menggunakan Next.js", projectMode: "new" });
+  assert.ok(!result.unknowns.some(item => item.key === "tech_stack"));
+});
