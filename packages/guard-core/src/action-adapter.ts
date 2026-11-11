@@ -1,13 +1,13 @@
 import { createHash } from "node:crypto";
 
-export type GuardedAction = "READ_ONLY" | "MODEL_REQUEST" | "FILE_WRITE" | "FILE_OVERWRITE" | "FILE_DELETE" | "DEPLOY" | "DATABASE_MIGRATION" | "BUDGET_CHANGE" | "SCOPE_CHANGE" | "ARCHITECTURE_CHANGE" | "SECURITY_CHANGE";
+export type GuardedAction = "READ_ONLY" | "MODEL_REQUEST" | "TERMINAL_COMMAND" | "FILE_WRITE" | "FILE_OVERWRITE" | "FILE_DELETE" | "DEPLOY" | "DATABASE_MIGRATION" | "BUDGET_CHANGE" | "SCOPE_CHANGE" | "ARCHITECTURE_CHANGE" | "SECURITY_CHANGE";
 export type ApprovalClass = "DESTRUCTIVE_ACTION" | "PRODUCTION_CHANGE" | "SPEND_LIMIT" | "SCOPE_CHANGE" | "ARCHITECTURE_CHANGE" | "SECURITY_SENSITIVE";
 export interface ActionAuthorization { allowed: boolean; reason: string; requiredApproval?: ApprovalClass; }
 export interface GuardedExecutionInput<T> { projectId: string; action: GuardedAction; payload: T; approvalId?: string; }
 export interface GuardedExecutionResult<R> { executed: boolean; reason: string; scopeFingerprint: string; result?: R; }
 
 const requiredApproval: Record<GuardedAction, ApprovalClass | null> = {
-  READ_ONLY: null, MODEL_REQUEST: null, FILE_WRITE: null,
+  READ_ONLY: null, MODEL_REQUEST: null, TERMINAL_COMMAND: "SECURITY_SENSITIVE", FILE_WRITE: null,
   FILE_OVERWRITE: "DESTRUCTIVE_ACTION", FILE_DELETE: "DESTRUCTIVE_ACTION",
   DEPLOY: "PRODUCTION_CHANGE", DATABASE_MIGRATION: "PRODUCTION_CHANGE",
   BUDGET_CHANGE: "SPEND_LIMIT", SCOPE_CHANGE: "SCOPE_CHANGE",
