@@ -32,15 +32,17 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
     const expectedToken=projectTokens[projectId];
     if(!expectedToken||request.headers["x-credit-guard-token"]!==expectedToken)return reply.code(401).send({error:"UNAUTHORIZED"});
     // Provider keys are loaded only by the Gateway process, never sent by the Agent.
+    if(!Object.hasOwn(adapters,provider))return reply.code(400).send({error:"UNSUPPORTED_PROVIDER"});
     const apiKey=providerKeys[`${provider}:${projectId}`];
     if(!apiKey)return reply.code(503).send({error:"PROVIDER_KEY_NOT_CONFIGURED",provider,projectId});
-    if(!Object.hasOwn(adapters,provider))return reply.code(400).send({error:"UNSUPPORTED_PROVIDER"});
     const body=request.body;
-    if(!body||typeof body.model!=="string"||!Array.isArray(body.messages)||!body.messages.length||
+    if(!body||typeof body.model!=="string"||!body.model.trim()||!Array.isArray(body.messages)||!body.messages.length||
       !body.messages.every(m=>m&&typeof m.role==="string"&&typeof m.content==="string"))
       return reply.code(400).send({error:"INVALID_REQUEST"});
     const maxTokens=body.max_tokens??1024;
     if(!Number.isSafeInteger(maxTokens)||maxTokens<1||maxTokens>32768)return reply.code(400).send({error:"INVALID_MAX_TOKENS"});
+    if(body.temperature!==undefined&&(!Number.isFinite(body.temperature)||body.temperature<0||body.temperature>2))
+      return reply.code(400).send({error:"INVALID_TEMPERATURE"});
     const rate=pricing[`${provider}:${body.model}`];
     if(!rate||!Number.isFinite(rate.inputUsdPerMillion)||!Number.isFinite(rate.outputUsdPerMillion)||rate.inputUsdPerMillion<0||rate.outputUsdPerMillion<0)
       return reply.code(503).send({error:"PRICING_NOT_CONFIGURED",model:body.model,provider});
@@ -49,7 +51,7 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
     const estimatedInputTokens=Math.ceil(inputCharacters/3);
     const estimatedCostMicros=Math.ceil((estimatedInputTokens*rate.inputUsdPerMillion+maxTokens*rate.outputUsdPerMillion)*safetyMultiplier);
     const idempotencyKey=randomUUID();
-    let reservation;
+    let reservation: Awaited<ReturnType<PostgresCreditLedger["reserve"]>>;
     try{reservation=await ledger.reserve({projectId,estimatedCostMicros:Math.max(1,estimatedCostMicros),idempotencyKey});}
     catch(error){return reply.code(402).send({error:error instanceof Error?error.message:"CREDIT_RESERVATION_FAILED"});}
     const requestId=randomUUID();
@@ -60,7 +62,7 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
       await ledger.release(reservation.id);
       return reply.code(503).send({error:"AUDIT_WRITE_FAILED",warning:"Provider request was not dispatched; reservation released."});
     }
-    let result;
+    let result: Awaited<ReturnType<typeof adapters[ProviderName]["send"]>>;
     try{
       result=await adapters[provider].send({model:body.model,messages:body.messages,maxTokens,temperature:body.temperature},apiKey);
     }catch{
