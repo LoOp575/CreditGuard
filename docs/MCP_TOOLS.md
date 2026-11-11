@@ -95,7 +95,7 @@ The unresolved list contains metadata only, not prompts or credentials. Once a r
 ## Prompt and execution intelligence
 
 ### `guard.prompt.prepare`
-Call before substantial work. Input: `rawPrompt`, optional `projectMode`, `techStack`, and `constraints`. Output preserves the original request and provides a structured brief, unknowns, optional suggested requirements, task phases, and execution rules. Suggested requirements are not user-approved scope.
+Call before substantial work. Input: `rawPrompt`, optional `projectMode`, `techStack`, and `constraints`. Output preserves the original request and provides an `objective`, phrase-to-technical `semanticInterpretations`, a concise `optimizedPrompt`, a `requiresSemanticReview` flag, unknowns, optional suggested requirements, task phases, and execution rules. The first semantic dictionary covers explicit Indonesian design, usability, performance, and security phrases. The deterministic compressor only emits recognized facts; ambiguous or unsupported requests are flagged for review. Keep `originalPrompt` as the source of truth and do not treat suggestions as approved scope. This is a rule-based v1, not general-purpose LLM-level language understanding.
 
 ### `guard.failure.analyze`
 Call before retrying a failed task. Supply `projectId`, the current `errorSignature`, `strategySignature`, and `previousAttempts` from project history. It returns `DIAGNOSE`, `REPLAN`, or `PAUSE`. It also records a combined error/strategy signature in the persistent Loop Guard when PostgreSQL mode is enabled. Persist detailed attempt history in project checkpoints so analysis remains useful across sessions.
