@@ -56,3 +56,16 @@
 - [ ] Security review before production claims
 
 No phase is considered production-ready until its tests and security review are complete.
+
+
+## Phase 7: Prompt and execution intelligence
+- [x] Deterministic prompt preparation contract preserving the original request
+- [x] Explicit unknowns and clarification questions
+- [x] Suggested requirements clearly separated from approved scope
+- [x] Bounded task outline with completion evidence
+- [x] Repeated failure/strategy analysis contract
+- [x] Approved requirement scope check
+- [x] Evidence-aware quality assessment
+- [ ] Durable storage for refined briefs, requirement baselines, and failure strategy history
+- [ ] Representative-agent integration tests proving tools are called at the right lifecycle points
+- [ ] Benchmark cost per successfully verified task against an unguarded baseline
