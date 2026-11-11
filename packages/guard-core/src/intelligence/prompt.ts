@@ -5,16 +5,16 @@ function unique(values: string[]): string[] {
 }
 
 function extractExplicitConstraints(prompt: string): string[] {
-  return prompt.split(/(?<=[.!?])\\s+|\\n+/)
+  return prompt.split(/(?<=[.!?])\s+|\n+/)
     .map(part => part.trim())
-    .filter(part => /^(jangan|jgn|tidak boleh|nggak boleh|gak boleh|tanpa|do not|don't|must not|keep|preserve|maintain)\\b/i.test(part));
+    .filter(part => /^(jangan|jgn|tidak boleh|nggak boleh|gak boleh|tanpa|do not|don't|must not|keep|preserve|maintain)\b/i.test(part));
 }
 
 function classifyCodingTask(prompt: string): "build" | "debug" | "modify" | "optimize" | "analyze" | "integrate" | "other" {
   const value = prompt.toLowerCase();
   if (/\b(debug|bug|error|fix|perbaiki|perbaikan|gagal|crash|errornya)\b/.test(value)) return "debug";
   if (/\b(optimasi|optimalkan|optimize|optimization|lebih cepat|lebih ringan|refactor|rapikan kode)\b/.test(value)) return "optimize";
-  if (/\b(integrasi|integrate|integration|hubungkan|connect|webhook|api pihak ketiga)\b/.test(value)) return "integrate";
+  if (/\b(integrasi|integrasikan|integrate|integration|hubungkan|connect|webhook|api pihak ketiga)\b/.test(value)) return "integrate";
   if (/\b(analisis|analisa|audit|review|inspect|investigasi|jelaskan kode)\b/.test(value)) return "analyze";
   if (/\b(ubah|tambahkan|tambah|modifikasi|update|perbarui|ubah fitur|modify|extend)\b/.test(value)) return "modify";
   if (/\b(buat|bangun|build|develop|create|kembangkan|bikin|implementasikan)\b/.test(value)) return "build";
