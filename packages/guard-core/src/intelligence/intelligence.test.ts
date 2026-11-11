@@ -177,3 +177,21 @@ test("token compression measurement rejects invalid tokenizer counts", async () 
     /invalid original token count/,
   );
 });
+
+test("unrecognized bug details are not sent through lossy compression", () => {
+  const result = preparePrompt({
+    rawPrompt: "Please fix the login bug in my application. The button keeps spinning after submission.",
+    projectMode: "existing",
+  });
+  assert.equal(result.intent.taskType, "debug");
+  assert.equal(result.requiresSemanticReview, true);
+  assert.ok(result.refinedPrompt.includes("The button keeps spinning after submission"));
+  assert.ok(result.optimizedPrompt.includes("Task type: debug"));
+});
+
+test("unsupported language remains review-required rather than being falsely compressed", () => {
+  const result = preparePrompt({ rawPrompt: "修复登录页面的错误，提交后一直加载" });
+  assert.equal(result.language.code, "zh");
+  assert.equal(result.requiresSemanticReview, true);
+  assert.ok(result.originalPrompt.includes("提交后一直加载"));
+});
