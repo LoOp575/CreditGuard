@@ -119,9 +119,9 @@ export function registerApprovalTools(server: McpServer, pool?: Pool) {
 
   // Single preflight contract for Agent tool adapters. This does not intercept
   // third-party tools by itself; adapters must call it before dispatch.
-  const actionPolicy = z.enum(["READ_ONLY","MODEL_REQUEST","FILE_WRITE","FILE_OVERWRITE","FILE_DELETE","DEPLOY","DATABASE_MIGRATION","BUDGET_CHANGE","SCOPE_CHANGE","ARCHITECTURE_CHANGE","SECURITY_CHANGE"]);
+  const actionPolicy = z.enum(["READ_ONLY","MODEL_REQUEST","TERMINAL_COMMAND","FILE_WRITE","FILE_OVERWRITE","FILE_DELETE","DEPLOY","DATABASE_MIGRATION","BUDGET_CHANGE","SCOPE_CHANGE","ARCHITECTURE_CHANGE","SECURITY_CHANGE"]);
   const requiredApproval: Record<z.infer<typeof actionPolicy>, ApprovalAction | null> = {
-    READ_ONLY:null, MODEL_REQUEST:null, FILE_WRITE:null,
+    READ_ONLY:null, MODEL_REQUEST:null, TERMINAL_COMMAND:"SECURITY_SENSITIVE", FILE_WRITE:null,
     FILE_OVERWRITE:"DESTRUCTIVE_ACTION", FILE_DELETE:"DESTRUCTIVE_ACTION", DEPLOY:"PRODUCTION_CHANGE",
     DATABASE_MIGRATION:"PRODUCTION_CHANGE", BUDGET_CHANGE:"SPEND_LIMIT", SCOPE_CHANGE:"SCOPE_CHANGE",
     ARCHITECTURE_CHANGE:"ARCHITECTURE_CHANGE", SECURITY_CHANGE:"SECURITY_SENSITIVE",
