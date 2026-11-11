@@ -11,20 +11,24 @@ export class ContextOptimizer {
       seen.add(section.id);
       if (!Number.isFinite(section.priority) || section.priority < 1 || section.priority > 5) throw new TypeError("priority must be between 1 and 5");
     }
-    const inputCharacters = input.sections.reduce((n, s) => n + s.content.length, 0);
+    const render = (s: ContextSection) => `[${s.id}]\n${s.content}`;
+    const inputText = input.sections.map(render).join("\n\n");
     const selected = new Set<string>();
     let used = 0;
-    // Required context is never silently discarded. If it exceeds the budget,
-    // return it intact and explicitly report that the limit could not be met.
-    for (const s of input.sections.filter(x => x.required)) { selected.add(s.id); used += s.content.length; }
+    for (const s of input.sections.filter(x => x.required)) {
+      const cost = render(s).length + (selected.size ? 2 : 0);
+      selected.add(s.id); used += cost;
+    }
     const optional = input.sections.filter(x => !x.required).sort((a,b) => b.priority-a.priority || input.sections.indexOf(a)-input.sections.indexOf(b));
     for (const s of optional) {
-      if (used + s.content.length <= input.maxCharacters) { selected.add(s.id); used += s.content.length; }
+      const cost = render(s).length + (selected.size ? 2 : 0);
+      if (used + cost <= input.maxCharacters) { selected.add(s.id); used += cost; }
     }
     const included = input.sections.filter(s => selected.has(s.id));
     const omittedIds = input.sections.filter(s => !selected.has(s.id)).map(s => s.id);
-    const text = included.map(s => `[${s.id}]\n${s.content}`).join("\n\n");
-    const outputCharacters = included.reduce((n,s) => n+s.content.length,0);
+    const text = included.map(render).join("\n\n");
+    const outputCharacters = text.length;
+    const inputCharacters = inputText.length;
     return { text, includedIds: included.map(s=>s.id), omittedIds, inputCharacters, outputCharacters,
       reductionPercent: inputCharacters ? Math.round((1-outputCharacters/inputCharacters)*10000)/100 : 0,
       limitExceeded: outputCharacters > input.maxCharacters };
