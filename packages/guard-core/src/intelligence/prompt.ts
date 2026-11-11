@@ -28,6 +28,63 @@ function buildQuestions(category: TaskCategory, projectMode: PromptPreparationIn
   return questions;
 }
 
+type SemanticRule = { pattern: RegExp; userPhrase: string; interpretation: string; category: "design" | "usability" | "performance" | "security"; requiresDesignContext?: boolean };
+
+const SEMANTIC_RULES: SemanticRule[] = [
+  { pattern: /\\bbagus\\b|\\bindah\\b|\\bkeren\\b/i, userPhrase: "Bagus / indah / keren", interpretation: "High-quality visual design", category: "design", requiresDesignContext: true },
+  { pattern: /\\bmodern\\b/i, userPhrase: "Modern", interpretation: "Modern UI design", category: "design", requiresDesignContext: true },
+  { pattern: /enak dipandang|nyaman dilihat|tidak menyakitkan mata/i, userPhrase: "Enak dipandang", interpretation: "Clear visual hierarchy, balanced spacing, and consistent visual styling", category: "design", requiresDesignContext: true },
+  { pattern: /tidak kaku|nggak kaku|gak kaku|lebih hidup/i, userPhrase: "Tidak kaku", interpretation: "Dynamic layout and natural interactions", category: "usability", requiresDesignContext: true },
+  { pattern: /nyaman dibuka di (hp|ponsel|mobile)|mudah digunakan di (hp|ponsel)/i, userPhrase: "Nyaman dibuka di HP", interpretation: "Mobile-friendly user experience", category: "usability" },
+  { pattern: /menyesuaikan (ukuran )?layar|semua ukuran layar|berbagai ukuran layar/i, userPhrase: "Menyesuaikan layar", interpretation: "Responsive design", category: "design" },
+  { pattern: /\\bresponsive\\b|\\bresponsif\\b/i, userPhrase: "Responsive", interpretation: "Responsive design", category: "design" },
+  { pattern: /tidak lemot|jangan lemot|cepat dibuka|loading cepat|performa cepat/i, userPhrase: "Tidak lemot / cepat", interpretation: "Web performance optimization", category: "performance" },
+  { pattern: /aman|keamanan kuat|tidak mudah dibobol/i, userPhrase: "Aman / keamanan kuat", interpretation: "Apply appropriate application security controls", category: "security" },
+];
+
+function inferObjective(prompt: string, category: TaskCategory): string {
+  const value = prompt.toLowerCase();
+  if (/website|web\\s*app|situs/.test(value) && /toko online|e-?commerce|jualan online|belanja online/.test(value)) return "Website toko online";
+  if (/website|web\\s*app|situs/.test(value)) return "Website";
+  if (/aplikasi|mobile app/.test(value)) return "Aplikasi";
+  if (/\\bapi\\b|backend|layanan server/.test(value)) return "API / backend service";
+  if (category === "software_project") return "Software project";
+  return category === "general" ? "User's stated task" : category.replace("_", " ");
+}
+
+function interpretSemantics(prompt: string): SemanticInterpretation[] {
+  const hasDesignContext = /website|web|aplikasi|app|ui|ux|desain|design|tampilan|halaman/i.test(prompt);
+  return SEMANTIC_RULES.filter(rule => rule.pattern.test(prompt) && (!rule.requiresDesignContext || hasDesignContext))
+    .map(({ userPhrase, interpretation, category }) => ({ userPhrase, interpretation, category }));
+}
+
+function buildOptimizedPrompt(objective: string, prompt: string, interpretations: SemanticInterpretation[], explicitConstraints: string[]): { prompt: string; requiresReview: boolean } {
+  const value = prompt.toLowerCase();
+  const requirements: string[] = [];
+  const add = (condition: boolean, text: string) => { if (condition) requirements.push(text); };
+  add(/katalog|daftar produk|produk-produk|lihat produk/.test(value), "Product catalog");
+  add(/keranjang|cart/.test(value), "Shopping cart");
+  add(/checkout|pembayaran|bayar/.test(value), "Checkout");
+  add(/qris/.test(value), "QRIS payment");
+  add(/transfer bank|transfer/.test(value), "Bank transfer");
+  add(/dashboard admin|halaman admin|admin/.test(value), "Admin dashboard");
+  add(/stok|persediaan/.test(value), "Stock management");
+  add(/pesanan|order/.test(value), "Order management");
+  add(/harga/.test(value), "Price management");
+  add(/produk/.test(value) && /admin|kelola|mengatur/.test(value), "Product management");
+  requirements.push(...interpretations.map(item => item.interpretation));
+  requirements.push(...explicitConstraints);
+  const uniqueRequirements = [...new Set(requirements)];
+  const output = [
+    "Objective: " + objective + ".",
+    ...(uniqueRequirements.length ? ["Requirements: " + uniqueRequirements.join("; ") + "."] : []),
+  ].join("\\n");
+  // This first deterministic release only compresses facts covered by explicit rules.
+  // Unrecognized or ambiguous requests must retain the original prompt for semantic review.
+  const hasRecognizedIntent = objective !== "User's stated task" && (uniqueRequirements.length > 0 || objective !== "Software project");
+  return { prompt: output, requiresReview: !hasRecognizedIntent };
+}
+
 function buildTasks(category: TaskCategory): PreparedTask[] {
   if (category === "software_project") {
     return [
@@ -108,5 +165,5 @@ export function preparePrompt(input: PromptPreparationInput): PreparedPrompt {
     ...executionRules.map(rule => `- ${rule}`),
   ].join("\n");
 
-  return { version: "1", originalPrompt, normalizedGoal, category, projectMode, explicitConstraints, unknowns, suggestedRequirements, tasks, executionRules, refinedPrompt };
+  return { version: "1", originalPrompt, normalizedGoal, objective, semanticInterpretations, optimizedPrompt: optimized.prompt, requiresSemanticReview: optimized.requiresReview, category, projectMode, explicitConstraints, unknowns, suggestedRequirements, tasks, executionRules, refinedPrompt };
 }
