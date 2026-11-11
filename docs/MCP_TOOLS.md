@@ -10,9 +10,9 @@ Credit Guard exposes advisory and control tools through the Model Context Protoc
 | `guard.project.get` | Read project state, evidence, and progress. |
 | `guard.project.transition` | Move through validated project states. |
 | `guard.project.record_evidence` | Attach evidence as unverified. |
-| `guard.project.verify_evidence` | Mark evidence verified after a trusted inspection. |
+| `guard.project.verify_evidence` | Mark evidence verified after a trusted inspection, using the separate verifier secret. |
 
-Evidence verification trusts the caller. A production deployment should connect this operation to a verifier that checks CI runs, artifact hashes, repository diffs, or other authoritative sources. An Agent's unverified self-report must not be treated as completed progress.
+Evidence verification requires `EVIDENCE_VERIFIER_TOKEN`, which must be held by a trusted operator or verifier integration and must never be supplied to the Agent. The tool checks that secret in constant time, but it still does not independently inspect the artifact. A production deployment should connect it to a verifier that checks CI runs, artifact hashes, repository diffs, or other authoritative sources. An Agent's unverified self-report must not be treated as completed progress.
 
 Project states: `CREATED`, `PLANNING`, `EXECUTING`, `VERIFYING`, `COMPLETED`, `PAUSED`, `BLOCKED`, `FAILED`. Terminal states cannot be reopened through ordinary transitions.
 
