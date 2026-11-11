@@ -61,6 +61,7 @@ export class GuardedTerminalAdapter {
             cwd: this.root,
             env: { PATH: process.env.PATH ?? "", ...(this.options.environment ?? {}) },
             shell: false,
+            encoding: "utf8",
             timeout: this.options.timeoutMs ?? 30_000,
             maxBuffer: this.options.maxBufferBytes ?? 1024 * 1024,
             windowsHide: true,
