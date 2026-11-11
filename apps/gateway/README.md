@@ -20,6 +20,7 @@ Before using a project, create both records through MCP with the same ID: `guard
 - `GATEWAY_PROJECT_TOKENS_JSON`: map project IDs to random tokens of at least 24 characters.
 - `PROVIDER_API_KEYS_JSON`: map `provider:projectId` to provider API key.
 - `PROVIDER_PRICING_JSON`: map `provider:model` to verified input/output USD-per-million-token rates.
+- `MODEL_FALLBACKS_JSON`: optional same-provider fallback map from `provider:requestedModel` to a cheaper model.
 - `ESTIMATE_SAFETY_MULTIPLIER`: optional estimate buffer, default 1.5.
 
 Example shapes (replace all values with secrets and current provider rates):
@@ -41,7 +42,7 @@ Headers:
 
 Body: `{ "model": "...", "messages": [{"role":"user","content":"..."}], "max_tokens": 1024 }`.
 
-The Gateway runs Decision Engine and Loop Guard preflight before reserving credit. A non-ALLOW decision returns HTTP 409 with machine-readable reasons. Verified milestone evidence is what resets the no-progress counter.
+The Gateway runs Decision Engine and Loop Guard preflight before reserving credit. When credit is insufficient or near the low-balance threshold, it can automatically switch to a configured cheaper model from `MODEL_FALLBACKS_JSON`, but only when the fallback has a configured rate, costs less, and fits the available budget. The switch is returned transparently in `creditGuard.actualModel`. Without a valid fallback, it returns HTTP 409 with machine-readable reasons. A hard over-budget state, terminal project, repeated-error pause, or no-progress intervention is not bypassed by a cheaper model. Verified milestone evidence is what resets the no-progress counter.
 
 The response contains the provider-native response under `provider` plus a `creditGuard` reconciliation summary. This is a provider-neutral request envelope, not a byte-for-byte OpenAI response proxy.
 
