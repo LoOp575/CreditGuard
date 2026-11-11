@@ -14,30 +14,57 @@ const requiredApproval: Record<GuardedAction, ApprovalClass | null> = {
   ARCHITECTURE_CHANGE: "ARCHITECTURE_CHANGE", SECURITY_CHANGE: "SECURITY_SENSITIVE",
 };
 
-function stableSerialize(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
-  if (Array.isArray(value)) return "[" + value.map(stableSerialize).join(",") + "]";
-  const record = value as Record<string, unknown>;
-  return "{" + Object.keys(record).sort().map((key) => JSON.stringify(key) + ":" + stableSerialize(record[key])).join(",") + "}";
+// Only JSON data is accepted so fingerprints are stable across runtimes.
+function stableSerialize(value: unknown, seen = new Set<object>()): string {
+  if (value === null) return "null";
+  if (typeof value === "string" || typeof value === "boolean") return JSON.stringify(value);
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error("FINGERPRINT_NON_FINITE_NUMBER");
+    return JSON.stringify(value);
+  }
+  if (typeof value !== "object") throw new Error("FINGERPRINT_NON_JSON_VALUE");
+  if (seen.has(value)) throw new Error("FINGERPRINT_CIRCULAR_REFERENCE");
+  seen.add(value);
+  try {
+    if (Array.isArray(value)) {
+      if (Object.keys(value).length !== value.length) throw new Error("FINGERPRINT_SPARSE_ARRAY");
+      return "[" + value.map((item) => stableSerialize(item, seen)).join(",") + "]";
+    }
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) throw new Error("FINGERPRINT_NON_PLAIN_OBJECT");
+    const record = value as Record<string, unknown>;
+    return "{" + Object.keys(record).sort().map((key) => {
+      if (record[key] === undefined) throw new Error("FINGERPRINT_UNDEFINED_VALUE");
+      return JSON.stringify(key) + ":" + stableSerialize(record[key], seen);
+    }).join(",") + "}";
+  } finally {
+    seen.delete(value);
+  }
 }
 
-/** Fingerprint is derived by the trusted adapter from the exact action payload. */
+/** Fingerprint is derived by the trusted adapter from the exact JSON payload. */
 export function createActionScopeFingerprint(action: GuardedAction, payload: unknown): string {
   return createHash("sha256").update(stableSerialize({ action, payload })).digest("hex");
 }
 
-/** Wrap a real tool handler. The authorizer must query trusted Credit Guard state. */
+/**
+ * Wrap a real tool handler. The authorizer must query trusted Credit Guard state.
+ * The dispatch function must remain private to the trusted adapter.
+ */
 export async function executeWithGuard<T, R>(
   input: GuardedExecutionInput<T>,
   authorize: (request: { projectId: string; action: GuardedAction; scopeFingerprint: string; approvalId?: string }) => Promise<ActionAuthorization>,
   dispatch: (payload: T) => Promise<R>,
 ): Promise<GuardedExecutionResult<R>> {
-  if (!input.projectId.trim()) throw new Error("PROJECT_REQUIRED");
+  if (typeof input.projectId !== "string" || !input.projectId.trim()) throw new Error("PROJECT_REQUIRED");
   const scopeFingerprint = createActionScopeFingerprint(input.action, input.payload);
   const decision = await authorize({ projectId: input.projectId, action: input.action, scopeFingerprint, approvalId: input.approvalId });
-  if (!decision.allowed) return { executed: false, reason: decision.reason || "POLICY_DENIED", scopeFingerprint };
+  // Exact true is required. Undefined, truthy strings, and malformed responses fail closed.
+  if (decision?.allowed !== true) {
+    return { executed: false, reason: typeof decision?.reason === "string" && decision.reason ? decision.reason : "POLICY_DENIED", scopeFingerprint };
+  }
   const result = await dispatch(input.payload);
-  return { executed: true, reason: decision.reason, scopeFingerprint, result };
+  return { executed: true, reason: decision.reason || "POLICY_ALLOWED", scopeFingerprint, result };
 }
 
 export function approvalClassForAction(action: GuardedAction): ApprovalClass | null { return requiredApproval[action]; }
