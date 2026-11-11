@@ -4,6 +4,12 @@ function unique(values: string[]): string[] {
   return [...new Set(values.map(value => value.trim()).filter(Boolean))];
 }
 
+function extractExplicitConstraints(prompt: string): string[] {
+  return prompt.split(/(?<=[.!?])\\s+|\\n+/)
+    .map(part => part.trim())
+    .filter(part => /^(jangan|jgn|tidak boleh|nggak boleh|gak boleh|tanpa|do not|don't|must not|keep|preserve|maintain)\\b/i.test(part));
+}
+
 function classifyCodingTask(prompt: string): "build" | "debug" | "modify" | "optimize" | "analyze" | "integrate" | "other" {
   const value = prompt.toLowerCase();
   if (/\b(debug|bug|error|fix|perbaiki|perbaikan|gagal|crash|errornya)\b/.test(value)) return "debug";
@@ -145,7 +151,7 @@ export function preparePrompt(input: PromptPreparationInput): PreparedPrompt {
   const target = inferTarget(originalPrompt);
   const projectMode = input.projectMode ?? "unknown";
   const techStack = unique(input.techStack ?? []);
-  const explicitConstraints = unique(input.constraints ?? []);
+  const explicitConstraints = unique([...(input.constraints ?? []), ...extractExplicitConstraints(originalPrompt)]);
   const unknowns = buildQuestions(category, projectMode, techStack, originalPrompt);
   const tasks = buildTasks(category);
   const suggestedRequirements = category === "software_project" && /payment|pembayaran|checkout|transaksi/i.test(originalPrompt)
