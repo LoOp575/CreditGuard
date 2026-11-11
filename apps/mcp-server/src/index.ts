@@ -7,6 +7,7 @@ import { CreditEngine, CreditEngineError, PostgresCreditLedger, ProjectEngine, L
 import { Pool } from "pg";
 import { z } from "zod";
 import { verifySecretToken } from "./security.js";
+import { preparePrompt, analyzeFailure, assessTaskScope, assessQuality } from "@credit-guard/guard-core";
 
 let projectEngine: ProjectEngine | PostgresProjectStore;
 let loopGuard: LoopGuard | PostgresLoopStore;
@@ -372,6 +373,76 @@ server.tool(
     } catch (error) {
       return toolError(error);
     }
+  },
+);
+
+
+server.tool(
+  "guard.prompt.prepare",
+  "Prepare a structured execution brief from a raw user prompt. Suggestions are explicitly marked and must not be treated as approved requirements.",
+  {
+    rawPrompt: z.string().min(1).max(20000),
+    projectMode: z.enum(["new", "existing", "unknown"]).optional(),
+    techStack: z.array(z.string().min(1)).optional(),
+    constraints: z.array(z.string().min(1)).optional(),
+  },
+  async (args) => {
+    try {
+      return { content: [{ type: "text", text: JSON.stringify(preparePrompt(args)) }] };
+    } catch (error) { return toolError(error); }
+  },
+);
+
+server.tool(
+  "guard.failure.analyze",
+  "Analyze whether a failure repeats a previously failed strategy. Supply prior attempts from the project checkpoint or execution history.",
+  {
+    errorSignature: z.string().min(1),
+    strategySignature: z.string().min(1),
+    maxSameStrategyFailures: z.number().int().positive().optional(),
+    previousAttempts: z.array(z.object({
+      errorSignature: z.string().min(1),
+      strategySignature: z.string().min(1),
+      outcome: z.enum(["failed", "succeeded"]).optional(),
+    })),
+  },
+  async (args) => {
+    try {
+      return { content: [{ type: "text", text: JSON.stringify(analyzeFailure(args)) }] };
+    } catch (error) { return toolError(error); }
+  },
+);
+
+server.tool(
+  "guard.intent.check_scope",
+  "Compare task requirement IDs with the approved project requirement baseline. Unmapped semantic intent must be reviewed by the Agent; this deterministic check does not claim natural-language understanding.",
+  {
+    approvedRequirementIds: z.array(z.string()),
+    taskRequirementIds: z.array(z.string()),
+  },
+  async (args) => {
+    try {
+      return { content: [{ type: "text", text: JSON.stringify(assessTaskScope(args)) }] };
+    } catch (error) { return toolError(error); }
+  },
+);
+
+server.tool(
+  "guard.quality.evaluate",
+  "Evaluate explicit verification checks. Required checks need passing results and evidence references before quality can pass.",
+  {
+    checks: z.array(z.object({
+      id: z.string().min(1),
+      description: z.string(),
+      required: z.boolean(),
+      passed: z.boolean().nullable(),
+      evidenceRef: z.string().optional(),
+    })),
+  },
+  async ({ checks }) => {
+    try {
+      return { content: [{ type: "text", text: JSON.stringify(assessQuality(checks)) }] };
+    } catch (error) { return toolError(error); }
   },
 );
 
