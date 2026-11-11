@@ -105,3 +105,19 @@ Compare `taskRequirementIds` with `approvedRequirementIds`. It returns `ALLOW` o
 
 ### `guard.quality.evaluate`
 Supply verification checks with `id`, `description`, `required`, `passed`, and optional `evidenceRef`. A required check cannot pass without both a passing result and an evidence reference.
+
+
+## Approval Gate
+
+| Tool | Purpose |
+|---|---|
+| `guard.approval.request` | Create an idempotent, expiring approval request for a protected action. |
+| `guard.approval.get` | Read the request state. |
+| `guard.approval.resolve` | Approve or reject through a trusted approval interface; requires the server-side authority token. |
+| `guard.approval.check` | Fail-closed check for the exact project and scope fingerprint before the protected action. |
+
+Protected action classes: `SCOPE_CHANGE`, `ARCHITECTURE_CHANGE`, `DESTRUCTIVE_ACTION`, `PRODUCTION_CHANGE`, `SPEND_LIMIT`, and `SECURITY_SENSITIVE`. A request defaults to a 60-minute expiry (configurable per request, maximum 7 days). Repeated request idempotency keys return the existing request. Approval is bound to the exact `projectId` and `scopeFingerprint`; changed scope requires a new approval. Rejected, expired, missing, or mismatched approvals must be treated as denied.
+
+Set `APPROVAL_AUTHORITY_TOKEN` to a random secret of at least 24 characters. Only a trusted approval UI/operator integration may possess and submit it. Never put it in an Agent prompt, checkpoint, tool context, or logs. Apply migration `004_approval_gate.sql` before starting PostgreSQL mode. In-memory mode is development-only and loses approval records on restart.
+
+**Enforcement boundary:** these MCP tools provide a fail-closed approval contract, but an external Agent can ignore the contract or bypass MCP unless its orchestration/runtime requires the check before protected tool execution. The current Gateway does not automatically intercept arbitrary filesystem, deployment, or third-party tool actions. Production enforcement requires integrating the check into the Agent orchestrator and each privileged tool adapter, with the approval authority kept outside the model's reach.
