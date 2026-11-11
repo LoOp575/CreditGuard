@@ -1,0 +1,14 @@
+{
+  "name": "@credit-guard/agent-adapter",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": { ".": "./dist/index.js", "./filesystem": "./dist/filesystem.js" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "tsx --test src/**/*.test.ts"
+  },
+  "dependencies": { "@credit-guard/guard-core": "workspace:*" },
+  "devDependencies": { "@types/node": "^22.15.30", "tsx": "^4.19.4", "typescript": "^5.8.3" }
+}
