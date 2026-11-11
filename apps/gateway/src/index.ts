@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
-dotenv.config({ path: "../../.env" });
+import { fileURLToPath } from "node:url";
+dotenv.config({ path: fileURLToPath(new URL("../../../.env", import.meta.url)) });
 import { Pool } from "pg";
 import { createGatewayServer } from "./server.js";
 import type { ModelPricing } from "./pricing.js";
