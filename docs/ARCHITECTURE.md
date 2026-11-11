@@ -53,3 +53,16 @@ The Gateway reserves estimated cost atomically before dispatch. Concurrent reque
 - BLOCK: deny a request that violates a hard policy.
 
 Every decision should return a machine-readable reason and relevant budget/progress metrics.
+
+
+## Prompt and execution intelligence
+
+The Intelligence layer prepares a structured execution brief from the original user prompt before an Agent starts work. It preserves the original request, separates explicit constraints from unknowns, marks domain-specific ideas as suggestions rather than approved scope, and proposes bounded tasks with observable completion evidence. The deterministic pre-processor is intentionally conservative; it does not claim to replace an LLM's semantic reasoning or silently answer critical unknowns.
+
+The MCP tools expose:
+- `guard.prompt.prepare`: create the prompt brief, clarification questions, suggested requirements, and task outline.
+- `guard.failure.analyze`: compare a new error/strategy pair with prior attempts and recommend diagnosis, replanning, or pause. The Agent must persist and supply prior attempts through project history/checkpoints.
+- `guard.intent.check_scope`: compare task requirement IDs against the approved requirement baseline. This is an ID-based guardrail, not a semantic classifier.
+- `guard.quality.evaluate`: evaluate explicit checks; required checks need passing results and evidence references.
+
+These tools complement the existing Loop Guard, Context Optimizer, Project Engine, Decision Engine, Credit Engine, and Gateway. They do not independently observe an Agent's filesystem or force an external Agent to call them. Reliable enforcement requires Agent integration and, for provider spend control, routing model traffic through the Gateway.
