@@ -39,7 +39,7 @@ export function createPostgresActionAuthorizer(pool: Pick<Pool, "query">): Actio
     if (!record) return { allowed: false, reason: "APPROVAL_NOT_FOUND", requiredApproval: required };
     if (!record.unexpired) {
       await pool.query(
-        "UPDATE cg_approval_requests SET status='EXPIRED' WHERE approval_id=$1 AND status='PENDING' AND expires_at<=now()",
+        "UPDATE cg_approval_requests SET status='EXPIRED' WHERE approval_id=$1 AND status IN ('PENDING','APPROVED') AND expires_at<=now()",
         [approvalId],
       );
       return { allowed: false, reason: "APPROVAL_EXPIRED", requiredApproval: required };
