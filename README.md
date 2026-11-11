@@ -64,8 +64,11 @@ docker compose up -d postgres
 # Apply both migrations using psql or your migration runner:
 # psql "$DATABASE_URL" -f database/migrations/001_credit_ledger.sql
 # psql "$DATABASE_URL" -f database/migrations/002_project_loop_checkpoint.sql
-# Then start MCP.
+# psql "$DATABASE_URL" -f database/migrations/003_gateway_audit.sql
+# Then start MCP or Gateway.
 pnpm --filter @credit-guard/mcp-server dev
+# In another terminal, after Gateway secrets and pricing are configured:
+pnpm --filter @credit-guard/gateway dev
 ```
 
 Copy `.env.example` to `.env` when environment configuration is needed. Never commit API keys or provider credentials.
