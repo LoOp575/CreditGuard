@@ -1,4 +1,4 @@
-import type { ClarificationItem, PreparedPrompt, PreparedTask, PromptPreparationInput, TaskCategory } from "./types.js";
+import type { ClarificationItem, PreparedPrompt, PreparedTask, PromptPreparationInput, SemanticInterpretation, TaskCategory } from "./types.js";
 
 function unique(values: string[]): string[] {
   return [...new Set(values.map(value => value.trim()).filter(Boolean))];
