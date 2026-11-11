@@ -7,6 +7,7 @@ import { CreditEngine, CreditEngineError, PostgresCreditLedger, ProjectEngine, L
 import { Pool } from "pg";
 import { z } from "zod";
 import { verifySecretToken } from "./security.js";
+import { registerApprovalTools } from "./approval-tools.js";
 
 let projectEngine: ProjectEngine | PostgresProjectStore;
 let loopGuard: LoopGuard | PostgresLoopStore;
@@ -38,11 +39,12 @@ if (databaseUrl) {
     to_regclass('public.cg_guard_projects') AS guard_projects,
     to_regclass('public.cg_loop_events') AS loop_events,
     to_regclass('public.cg_checkpoints') AS checkpoints,
-    to_regclass('public.cg_gateway_requests') AS gateway_requests`);
+    to_regclass('public.cg_gateway_requests') AS gateway_requests,
+    to_regclass('public.cg_approval_requests') AS approval_requests`);
   const s = schemaCheck.rows[0];
-  if (!s?.credit_projects || !s?.credit_reservations || !s?.guard_projects || !s?.loop_events || !s?.checkpoints || !s?.gateway_requests) {
+  if (!s?.credit_projects || !s?.credit_reservations || !s?.guard_projects || !s?.loop_events || !s?.checkpoints || !s?.gateway_requests || !s?.approval_requests) {
     await pool.end();
-    throw new Error("Credit Guard PostgreSQL schema is incomplete. Apply migrations 001_credit_ledger.sql, 002_project_loop_checkpoint.sql, and 003_gateway_audit.sql.");
+    throw new Error("Credit Guard PostgreSQL schema is incomplete. Apply migrations 001_credit_ledger.sql, 002_project_loop_checkpoint.sql, 003_gateway_audit.sql, and 004_approval_gate.sql.");
   }
   creditEngine = new PostgresCreditLedger(pool);
   projectEngine = new PostgresProjectStore(pool);
@@ -58,6 +60,8 @@ if (databaseUrl) {
   ledgerMode = "in-memory (non-durable, single-process; development only)";
   stateMode = "in-memory (non-durable, single-process; development only)";
 }
+
+registerApprovalTools(server, databasePool);
 
 function toolError(error: unknown) {
   const code = error instanceof CreditEngineError ? error.code : "INTERNAL_ERROR";
