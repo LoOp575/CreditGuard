@@ -16,8 +16,8 @@ if(!Object.keys(projectTokens).length||Object.values(projectTokens).some(token=>
 if(!Number.isFinite(safetyMultiplier)||safetyMultiplier<1||safetyMultiplier>5)throw new Error("ESTIMATE_SAFETY_MULTIPLIER must be between 1 and 5");
 
 const pool=new Pool({connectionString:databaseUrl,max:20});
-const schema=await pool.query("SELECT to_regclass('public.cg_projects') AS projects,to_regclass('public.cg_reservations') AS reservations");
-if(!schema.rows[0]?.projects||!schema.rows[0]?.reservations){await pool.end();throw new Error("Apply database/migrations/001_credit_ledger.sql before starting Gateway");}
+const schema=await pool.query("SELECT to_regclass('public.cg_projects') AS projects,to_regclass('public.cg_reservations') AS reservations,to_regclass('public.cg_gateway_requests') AS gateway_requests");
+if(!schema.rows[0]?.projects||!schema.rows[0]?.reservations||!schema.rows[0]?.gateway_requests){await pool.end();throw new Error("Apply migrations 001_credit_ledger.sql and 003_gateway_audit.sql before starting Gateway");}
 const ledger=new PostgresCreditLedger(pool);
 const adapters=createProviderAdapters();
 const app=Fastify({logger:false,bodyLimit:2*1024*1024});
@@ -52,25 +52,45 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
     let reservation;
     try{reservation=await ledger.reserve({projectId,estimatedCostMicros:Math.max(1,estimatedCostMicros),idempotencyKey});}
     catch(error){return reply.code(402).send({error:error instanceof Error?error.message:"CREDIT_RESERVATION_FAILED"});}
+    const requestId=randomUUID();
     try{
-      const result=await adapters[provider].send({model:body.model,messages:body.messages,maxTokens,temperature:body.temperature},apiKey);
-      if(result.usage){
-        const actual=Math.ceil(result.usage.inputTokens*rate.inputUsdPerMillion+result.usage.outputTokens*rate.outputUsdPerMillion);
-        await ledger.settle(reservation.id,actual);
-      }
-      if(result.status<200||result.status>=300){
-        return reply.code(result.status).send({error:"PROVIDER_ERROR",providerBody:result.body,
-          reservationId:reservation.id,usageKnown:Boolean(result.usage),
-          warning:result.usage?"Provider usage was reconciled.":"Usage is unknown; reservation remains held for manual reconciliation."});
-      }
-      return reply.code(200).send({provider:result.body,creditGuard:{reservationId:reservation.id,
-        estimatedCostMicros,actualUsage:result.usage,settled:Boolean(result.usage),
-        warning:result.usage?undefined:"Provider usage was not returned; reservation remains held."}});
-    }catch(error){
-      // A transport failure may still have reached the provider. Never release blindly.
-      return reply.code(502).send({error:"UPSTREAM_OR_RECONCILIATION_ERROR",reservationId:reservation.id,
-        warning:"Reservation remains held because provider billing outcome is uncertain."});
+      await pool.query("INSERT INTO cg_gateway_requests(request_id,project_id,reservation_id,provider,model,status,estimated_cost_micros) VALUES($1,$2,$3,$4,$5,'STARTED',$6)",
+        [requestId,projectId,reservation.id,provider,body.model,String(estimatedCostMicros)]);
+    }catch{
+      await ledger.release(reservation.id);
+      return reply.code(503).send({error:"AUDIT_WRITE_FAILED",warning:"Provider request was not dispatched; reservation released."});
     }
+    let result;
+    try{
+      result=await adapters[provider].send({model:body.model,messages:body.messages,maxTokens,temperature:body.temperature},apiKey);
+    }catch{
+      await pool.query("UPDATE cg_gateway_requests SET status='UNKNOWN',updated_at=now() WHERE request_id=$1",[requestId]);
+      return reply.code(502).send({error:"UPSTREAM_OUTCOME_UNKNOWN",requestId,reservationId:reservation.id,
+        warning:"Provider outcome and billing are uncertain; reservation remains held for reconciliation."});
+    }
+    let actualCostMicros:number|null=null;
+    if(result.usage){
+      actualCostMicros=Math.ceil(result.usage.inputTokens*rate.inputUsdPerMillion+result.usage.outputTokens*rate.outputUsdPerMillion);
+      try{await ledger.settle(reservation.id,actualCostMicros);}
+      catch{
+        await pool.query("UPDATE cg_gateway_requests SET status='RECONCILIATION_ERROR',actual_cost_micros=$2,input_tokens=$3,output_tokens=$4,updated_at=now() WHERE request_id=$1",
+          [requestId,String(actualCostMicros),result.usage.inputTokens,result.usage.outputTokens]);
+        return reply.code(502).send({error:"RECONCILIATION_FAILED",requestId,reservationId:reservation.id,
+          actualCostMicros,warning:"Provider usage is known but ledger settlement failed. Manual reconciliation is required."});
+      }
+    }
+    const providerSucceeded=result.status>=200&&result.status<300;
+    const auditStatus=result.usage?(providerSucceeded?"SUCCEEDED":"PROVIDER_ERROR"):(providerSucceeded?"SUCCESS_USAGE_UNKNOWN":"PROVIDER_ERROR_USAGE_UNKNOWN");
+    await pool.query("UPDATE cg_gateway_requests SET status=$2,actual_cost_micros=$3,input_tokens=$4,output_tokens=$5,updated_at=now() WHERE request_id=$1",
+      [requestId,auditStatus,actualCostMicros===null?null:String(actualCostMicros),result.usage?.inputTokens??null,result.usage?.outputTokens??null]);
+    if(!providerSucceeded){
+      return reply.code(result.status).send({error:"PROVIDER_ERROR",providerBody:result.body,requestId,
+        reservationId:reservation.id,usageKnown:Boolean(result.usage),
+        warning:result.usage?"Provider usage was reconciled.":"Usage is unknown; reservation remains held for manual reconciliation."});
+    }
+    return reply.code(200).send({provider:result.body,creditGuard:{requestId,reservationId:reservation.id,
+      estimatedCostMicros,actualCostMicros,actualUsage:result.usage,settled:Boolean(result.usage),
+      warning:result.usage?undefined:"Provider usage was not returned; reservation remains held."}});
   }
 );
 
