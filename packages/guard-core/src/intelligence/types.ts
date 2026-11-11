@@ -1,3 +1,5 @@
+import type { LanguageDetection } from "./language.js";
+
 export type TaskCategory = "software_project" | "bug_fix" | "research" | "writing" | "general";
 
 export interface PromptPreparationInput {
@@ -42,6 +44,7 @@ export interface UniversalIntent {
 
 export interface PreparedPrompt {
   version: "1";
+  language: LanguageDetection;
   originalPrompt: string;
   normalizedGoal: string;
   objective: string;
