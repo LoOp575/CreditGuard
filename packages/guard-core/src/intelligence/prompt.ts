@@ -31,23 +31,23 @@ function buildQuestions(category: TaskCategory, projectMode: PromptPreparationIn
 type SemanticRule = { pattern: RegExp; userPhrase: string; interpretation: string; category: "design" | "usability" | "performance" | "security"; requiresDesignContext?: boolean };
 
 const SEMANTIC_RULES: SemanticRule[] = [
-  { pattern: /\\bbagus\\b|\\bindah\\b|\\bkeren\\b/i, userPhrase: "Bagus / indah / keren", interpretation: "High-quality visual design", category: "design", requiresDesignContext: true },
-  { pattern: /\\bmodern\\b/i, userPhrase: "Modern", interpretation: "Modern UI design", category: "design", requiresDesignContext: true },
+  { pattern: /\bbagus\b|\bindah\b|\bkeren\b/i, userPhrase: "Bagus / indah / keren", interpretation: "High-quality visual design", category: "design", requiresDesignContext: true },
+  { pattern: /\bmodern\b/i, userPhrase: "Modern", interpretation: "Modern UI design", category: "design", requiresDesignContext: true },
   { pattern: /enak dipandang|nyaman dilihat|tidak menyakitkan mata/i, userPhrase: "Enak dipandang", interpretation: "Clear visual hierarchy, balanced spacing, and consistent visual styling", category: "design", requiresDesignContext: true },
   { pattern: /tidak kaku|nggak kaku|gak kaku|lebih hidup/i, userPhrase: "Tidak kaku", interpretation: "Dynamic layout and natural interactions", category: "usability", requiresDesignContext: true },
   { pattern: /nyaman dibuka di (hp|ponsel|mobile)|mudah digunakan di (hp|ponsel)/i, userPhrase: "Nyaman dibuka di HP", interpretation: "Mobile-friendly user experience", category: "usability" },
   { pattern: /menyesuaikan (ukuran )?layar|semua ukuran layar|berbagai ukuran layar/i, userPhrase: "Menyesuaikan layar", interpretation: "Responsive design", category: "design" },
-  { pattern: /\\bresponsive\\b|\\bresponsif\\b/i, userPhrase: "Responsive", interpretation: "Responsive design", category: "design" },
+  { pattern: /\bresponsive\b|\bresponsif\b/i, userPhrase: "Responsive", interpretation: "Responsive design", category: "design" },
   { pattern: /tidak lemot|jangan lemot|cepat dibuka|loading cepat|performa cepat/i, userPhrase: "Tidak lemot / cepat", interpretation: "Web performance optimization", category: "performance" },
   { pattern: /aman|keamanan kuat|tidak mudah dibobol/i, userPhrase: "Aman / keamanan kuat", interpretation: "Apply appropriate application security controls", category: "security" },
 ];
 
 function inferObjective(prompt: string, category: TaskCategory): string {
   const value = prompt.toLowerCase();
-  if (/website|web\\s*app|situs/.test(value) && /toko online|e-?commerce|jualan online|belanja online/.test(value)) return "Website toko online";
-  if (/website|web\\s*app|situs/.test(value)) return "Website";
+  if (/website|web\s*app|situs/.test(value) && /toko online|e-?commerce|jualan online|belanja online/.test(value)) return "Website toko online";
+  if (/website|web\s*app|situs/.test(value)) return "Website";
   if (/aplikasi|mobile app/.test(value)) return "Aplikasi";
-  if (/\\bapi\\b|backend|layanan server/.test(value)) return "API / backend service";
+  if (/\bapi\b|backend|layanan server/.test(value)) return "API / backend service";
   if (category === "software_project") return "Software project";
   return category === "general" ? "User's stated task" : category.replace("_", " ");
 }
@@ -78,7 +78,7 @@ function buildOptimizedPrompt(objective: string, prompt: string, interpretations
   const output = [
     "Objective: " + objective + ".",
     ...(uniqueRequirements.length ? ["Requirements: " + uniqueRequirements.join("; ") + "."] : []),
-  ].join("\\n");
+  ].join("\n");
   // This first deterministic release only compresses facts covered by explicit rules.
   // Unrecognized or ambiguous requests must retain the original prompt for semantic review.
   const hasRecognizedIntent = objective !== "User's stated task" && (uniqueRequirements.length > 0 || objective !== "Software project");
