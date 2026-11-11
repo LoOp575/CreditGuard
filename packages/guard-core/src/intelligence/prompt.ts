@@ -8,7 +8,7 @@ function unique(values: string[]): string[] {
 function extractExplicitConstraints(prompt: string): string[] {
   return prompt.split(/(?<=[.!?])\s+|\n+/)
     .map(part => part.trim())
-    .filter(part => /^(jangan|jgn|tidak boleh|nggak boleh|gak boleh|tanpa|do not|don't|must not|keep|preserve|maintain)\b/i.test(part));
+    .filter(part => /^(jangan|jgn|tidak boleh|nggak boleh|gak boleh|tanpa|do not|don't|must not|keep|preserve|maintain|no|never|sin|nunca|não|nao|ne pas|nicht|不要)\b/i.test(part));
 }
 
 function classifyCodingTask(prompt: string): "build" | "debug" | "modify" | "optimize" | "analyze" | "integrate" | "other" {
@@ -97,7 +97,7 @@ function interpretSemantics(prompt: string): SemanticInterpretation[] {
     .map(({ userPhrase, interpretation, category }) => ({ userPhrase, interpretation, category }));
 }
 
-function buildOptimizedPrompt(objective: string, prompt: string, interpretations: SemanticInterpretation[], explicitConstraints: string[]): { prompt: string; requiresReview: boolean } {
+function buildOptimizedPrompt(objective: string, prompt: string, interpretations: SemanticInterpretation[], explicitConstraints: string[], taskType: string, target: string): { prompt: string; requiresReview: boolean } {
   const value = prompt.toLowerCase();
   const requirements: string[] = [];
   const add = (condition: boolean, text: string) => { if (condition) requirements.push(text); };
@@ -116,12 +116,14 @@ function buildOptimizedPrompt(objective: string, prompt: string, interpretations
   requirements.push(...explicitConstraints);
   const uniqueRequirements = [...new Set(requirements)];
   const output = [
+    "Task type: " + taskType + ".",
+    "Target: " + target + ".",
     "Objective: " + objective + ".",
     ...(uniqueRequirements.length ? ["Requirements: " + uniqueRequirements.join("; ") + "."] : []),
   ].join("\n");
   // This first deterministic release only compresses facts covered by explicit rules.
   // Unrecognized or ambiguous requests must retain the original prompt for semantic review.
-  const hasRecognizedIntent = objective !== "User's stated task" && (uniqueRequirements.length > 0 || objective !== "Software project");
+  const hasRecognizedIntent = uniqueRequirements.length > 0 && objective !== "User's stated task" && objective !== "Software project";
   return { prompt: output, requiresReview: !hasRecognizedIntent };
 }
 
@@ -167,7 +169,7 @@ export function preparePrompt(input: PromptPreparationInput): PreparedPrompt {
 
   const objective = inferObjective(originalPrompt, category);
   const semanticInterpretations = interpretSemantics(originalPrompt);
-  const optimized = buildOptimizedPrompt(objective, originalPrompt, semanticInterpretations, explicitConstraints);
+  const optimized = buildOptimizedPrompt(objective, originalPrompt, semanticInterpretations, explicitConstraints, taskType, target);
 
   const executionRules = [
     "Preserve the user's original goal; clarify it, do not silently replace it.",
