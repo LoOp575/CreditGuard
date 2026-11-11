@@ -18,10 +18,11 @@ It helps agents estimate usage, reserve project budgets, detect wasteful retry l
 2. Project budget and credit state.
 3. Preflight estimates and atomic credit reservations.
 4. Usage reconciliation after provider responses.
-5. Retry/loop protection.
-6. Project progress and checkpoint state.
+5. Persistent project lifecycle, milestone evidence, and checkpoint state.
+6. Persistent retry/loop protection and no-progress detection.
 7. Decision engine: ALLOW, OPTIMIZE, INTERVENE, CHECKPOINT_PAUSE, BLOCK.
-8. Provider gateway in a later phase.
+8. Context selection under a character budget.
+9. Provider gateway enforcement remains the next major phase.
 
 ## Planned stack
 
@@ -47,15 +48,9 @@ docs/               Architecture, security, roadmap
 
 ## Development status
 
-The repository now includes an MCP foundation, an in-memory reference engine, and an initial PostgreSQL ledger adapter:
-- Project budget creation and status
-- Preflight checks
-- Durable reservations with per-project row locking and idempotency constraints
-- Actual-usage settlement and unused-reservation release
-- A PostgreSQL migration and optional DATABASE_URL-based MCP selection
-- In-memory unit tests for concurrency, idempotency, budget overruns, and release behavior
+The repository now includes PostgreSQL-backed credit, project, loop, and checkpoint components; explainable decisions; and a deterministic context optimizer. CI applies both migrations to PostgreSQL 16 and runs integration tests for concurrent reservations, settlement, evidence verification, loop detection, and checkpoint retrieval.
 
-**Important limitation:** the PostgreSQL adapter and migration have been committed but have not yet been compiled or integration-tested against a live PostgreSQL instance. Without DATABASE_URL, MCP explicitly uses the non-durable in-memory development ledger. Apply the migration before starting with DATABASE_URL. Do not treat this as production-ready until database integration, multi-instance concurrency, crash-recovery, and security tests pass.
+**Important limitation:** the MCP interface remains advisory-only. It cannot stop an Agent from calling a provider directly. Evidence verification trusts the caller's verification step and is not a cryptographic artifact verifier. In-memory mode is development-only and loses state on restart. Provider Gateway enforcement, representative-agent tests, load/failover testing, and security review remain before production claims.
 
 ## Local setup
 
@@ -66,8 +61,10 @@ pnpm install
 
 # Optional local PostgreSQL
 docker compose up -d postgres
-# Apply database/migrations/001_credit_ledger.sql using psql or your migration runner.
-# Then set DATABASE_URL in .env and start MCP.
+# Apply both migrations using psql or your migration runner:
+# psql "$DATABASE_URL" -f database/migrations/001_credit_ledger.sql
+# psql "$DATABASE_URL" -f database/migrations/002_project_loop_checkpoint.sql
+# Then start MCP.
 pnpm --filter @credit-guard/mcp-server dev
 ```
 
