@@ -1,6 +1,8 @@
 # Credit Guard Gateway
 
-The Gateway is the enforcement path for provider calls. It exposes an OpenAI-shaped request envelope at `POST /v1/chat/completions`, accepts provider selection in headers, reserves project credit in PostgreSQL before dispatch, and reconciles provider-reported token usage afterward.
+The Gateway is the enforcement path for provider calls. It exposes a provider-neutral text request envelope at `POST /v1/chat/completions`, accepts provider selection in headers, evaluates project state + credit + loop risk, reserves project credit in PostgreSQL before dispatch, and reconciles provider-reported token usage afterward.
+
+Before using a project, create both records through MCP with the same ID: `guard.project.create` for lifecycle/milestones and `guard.credit.project.create` for its budget. The Gateway fails closed if either is missing.
 
 ## Security model
 
@@ -38,6 +40,8 @@ Headers:
 - `x-credit-guard-provider`: `openai`, `anthropic`, or `google`
 
 Body: `{ "model": "...", "messages": [{"role":"user","content":"..."}], "max_tokens": 1024 }`.
+
+The Gateway runs Decision Engine and Loop Guard preflight before reserving credit. A non-ALLOW decision returns HTTP 409 with machine-readable reasons. Verified milestone evidence is what resets the no-progress counter.
 
 The response contains the provider-native response under `provider` plus a `creditGuard` reconciliation summary. This is a provider-neutral request envelope, not a byte-for-byte OpenAI response proxy.
 
