@@ -61,3 +61,18 @@ test("database adapter rejects unregistered SQL and checksum drift", async () =>
     authorize: async () => ({ allowed: true, reason: "APPROVED" }),
   }), /MIGRATION_CHECKSUM_MISMATCH/);
 });
+
+
+test("database migration is idempotent when the same checksum is already recorded", async () => {
+  const sql = "CREATE TABLE guarded_test(id integer)";
+  const sha256 = createHash("sha256").update(sql).digest("hex");
+  const fake = fakePool(sha256);
+  const adapter = new GuardedDatabaseAdapter({
+    pool: fake.pool as never, projectId: "p1", migrations: [{ id: "001-test", sql, sha256 }],
+    authorize: async () => ({ allowed: true, reason: "APPROVED" }),
+  });
+  const result = await adapter.runMigration("001-test");
+  assert.equal(result.executed, true);
+  assert.equal(result.alreadyApplied, true);
+  assert.equal(fake.calls.some((call) => call.sql === sql), false);
+});
