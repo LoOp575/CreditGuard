@@ -46,9 +46,9 @@ export class GuardedTerminalAdapter {
   }
 
   async run(profile: string, args: string[], approvalId?: string): Promise<TerminalResult> {
+    if (!Object.hasOwn(this.options.commands, profile)) throw new Error("COMMAND_PROFILE_NOT_ALLOWED");
     const executable = this.options.commands[profile];
-    if (!executable) throw new Error("COMMAND_PROFILE_NOT_ALLOWED");
-    if (!Array.isArray(args) || args.some((arg) => typeof arg !== "string" || arg.includes("\0"))) {
+    if (!Array.isArray(args) || args.length > 256 || args.some((arg) => typeof arg !== "string" || arg.length > 16_384 || arg.includes("\\0"))) {
       throw new Error("INVALID_COMMAND_ARGUMENTS");
     }
     const payload = { profile, executable, args, cwd: this.root };
