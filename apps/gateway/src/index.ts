@@ -59,8 +59,7 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
     const inputCharacters=JSON.stringify(body.messages).length;
     let dispatchModel=body.model;
     let dispatchRate=rate;
-    let estimate=estimateCostMicros(inputCharacters,maxTokens,rate,safetyMultiplier);
-    let estimatedCostMicros=estimate.costMicros;
+    let estimatedCostMicros=estimateCostMicros(inputCharacters,maxTokens,rate,safetyMultiplier).costMicros;
     let optimizedFrom:string|undefined;
     let availableMicros=0;
     let loopAssessment;
@@ -81,7 +80,7 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
         if(fallbackEstimate.costMicros>=estimatedCostMicros||fallbackEstimate.costMicros>availableMicros)
           return reply.code(409).send({error:"NO_AFFORDABLE_FALLBACK",decision,requestedModel:body.model,fallbackModel,
             fallbackEstimatedCostMicros:fallbackEstimate.costMicros,availableMicros});
-        dispatchModel=fallbackModel;dispatchRate=fallbackRate;estimate=fallbackEstimate;
+        dispatchModel=fallbackModel;dispatchRate=fallbackRate;
         estimatedCostMicros=fallbackEstimate.costMicros;optimizedFrom=body.model;
       }else if(decision.action!=="ALLOW"){
         return reply.code(409).send({error:"GUARD_DECISION",decision});
