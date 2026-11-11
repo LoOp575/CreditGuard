@@ -81,6 +81,7 @@ Copy `.env.example` to `.env` when environment configuration is needed. Never co
 - [MCP tool reference and operating workflow](docs/MCP_TOOLS.md)
 - [Gateway deployment and security configuration](apps/gateway/README.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Operations runbook](docs/OPERATIONS.md)
 - [Roadmap](docs/ROADMAP.md)
 
 ## Security
