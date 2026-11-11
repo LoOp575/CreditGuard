@@ -8,5 +8,6 @@ const base: DecisionInput = {
   loop: { action: "CONTINUE", score: 0, repeatedErrors: 0, retries: 0, requestsWithoutProgress: 0, reason: "HEALTHY" },
 };
 test("allows healthy affordable work", () => assert.equal(new DecisionEngine().decide(base).action, "ALLOW"));
-test("blocks request above available balance", () => assert.equal(new DecisionEngine().decide({ ...base, estimatedCostMicros: 10_000_000 }).action, "BLOCK"));
+test("recommends optimization when estimate exceeds available credit", () => assert.equal(new DecisionEngine().decide({ ...base, estimatedCostMicros: 10_000_000 }).action, "OPTIMIZE"));
+test("blocks an already over-budget project", () => assert.equal(new DecisionEngine().decide({ ...base, credit: { ...base.credit, overBudget: true } }).action, "BLOCK"));
 test("checkpoints when loop guard pauses", () => assert.equal(new DecisionEngine().decide({ ...base, loop: { ...base.loop, action: "PAUSE", reason: "NO_PROGRESS" } }).action, "CHECKPOINT_PAUSE"));
