@@ -1,0 +1,23 @@
+{
+  "name": "@credit-guard/gateway",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @credit-guard/guard-core build && tsx watch src/index.ts",
+    "build": "pnpm --filter @credit-guard/guard-core build && tsc -p tsconfig.json",
+    "typecheck": "pnpm --filter @credit-guard/guard-core build && tsc --noEmit -p tsconfig.json",
+    "test": "tsx --test src/**/*.test.ts"
+  },
+  "dependencies": {
+    "@credit-guard/guard-core": "workspace:*",
+    "fastify": "^5.3.3",
+    "pg": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "@types/pg": "^8.15.4",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}
