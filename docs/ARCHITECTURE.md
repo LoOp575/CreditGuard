@@ -80,3 +80,10 @@ The MCP implementation exposes the request/get/resolve/check contract. It is not
 Prompt preparation uses a task-agnostic intent schema so the system is not limited to website creation. The schema captures task type (build, debug, modify, optimize, analyze, integrate, or other), target, objective, requirements, explicit constraints, available project context, expected output, and verification approach. Deterministic phrase rules provide a conservative first-pass classification; they are not multilingual or general-purpose semantic understanding. Unsupported or ambiguous intent must retain the original prompt and be flagged for review. The original request remains authoritative, and inferred requirements must never silently become approved scope.
 
 The intent schema is independent of programming language and framework. Target detection is a lightweight hint only; Agents must inspect the actual repository and project artifacts before acting. Token savings must be measured with the destination model tokenizer and provider usage, while preserving enough context to complete and verify the requested task.
+
+
+## Multilingual intent detection
+
+The first multilingual layer detects Indonesian, English, Spanish, Portuguese, French, German, Japanese, and Chinese scripts using deterministic keyword/script heuristics. It adds a language signal to the prepared prompt and expands a bounded set of task and design phrases. This is not machine translation or broad multilingual semantic understanding. If the language is unsupported or the request cannot be safely represented by known rules, `requiresSemanticReview` remains true and the original prompt must be retained. Script detection alone does not imply that the request has been understood.
+
+The canonical intent fields remain language-independent. Provider-specific token counting is deliberately separate: exact token counts require the destination model's tokenizer or authoritative provider usage data. Character counts and generic token-per-word ratios must not be reported as exact savings.
