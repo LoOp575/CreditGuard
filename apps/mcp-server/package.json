@@ -10,6 +10,7 @@
     "test": "node --test"
   },
   "dependencies": {
+    "dotenv": "^16.5.0",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "@credit-guard/guard-core": "workspace:*",
     "pg": "^8.16.0",
