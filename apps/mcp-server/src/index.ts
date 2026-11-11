@@ -1,11 +1,12 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CreditEngine, CreditEngineError, PostgresCreditLedger, ProjectEngine, LoopGuard, DecisionEngine, ContextOptimizer } from "@credit-guard/guard-core";
+import { CreditEngine, CreditEngineError, PostgresCreditLedger, ProjectEngine, LoopGuard, DecisionEngine, ContextOptimizer, PostgresProjectStore, PostgresLoopStore, PostgresCheckpointStore, InMemoryCheckpointStore } from "@credit-guard/guard-core";
 import { Pool } from "pg";
 import { z } from "zod";
 
-const projectEngine = new ProjectEngine();
-const loopGuard = new LoopGuard();
+let projectEngine: ProjectEngine | PostgresProjectStore;
+let loopGuard: LoopGuard | PostgresLoopStore;
+let checkpointStore: InMemoryCheckpointStore | PostgresCheckpointStore;
 const decisionEngine = new DecisionEngine();
 const contextOptimizer = new ContextOptimizer();
 
@@ -17,21 +18,34 @@ const server = new McpServer({
 const databaseUrl = process.env.DATABASE_URL;
 let creditEngine: CreditEngine | PostgresCreditLedger;
 let ledgerMode: string;
+let stateMode: string;
 
 if (databaseUrl) {
   const pool = new Pool({ connectionString: databaseUrl, max: 10 });
-  const schemaCheck = await pool.query(
-    "SELECT to_regclass('public.cg_projects') AS projects, to_regclass('public.cg_reservations') AS reservations",
-  );
-  if (!schemaCheck.rows[0]?.projects || !schemaCheck.rows[0]?.reservations) {
+  const schemaCheck = await pool.query(`SELECT
+    to_regclass('public.cg_projects') AS credit_projects,
+    to_regclass('public.cg_reservations') AS credit_reservations,
+    to_regclass('public.cg_guard_projects') AS guard_projects,
+    to_regclass('public.cg_loop_events') AS loop_events,
+    to_regclass('public.cg_checkpoints') AS checkpoints`);
+  const s = schemaCheck.rows[0];
+  if (!s?.credit_projects || !s?.credit_reservations || !s?.guard_projects || !s?.loop_events || !s?.checkpoints) {
     await pool.end();
-    throw new Error("Credit Guard PostgreSQL schema is missing. Apply database/migrations/001_credit_ledger.sql first.");
+    throw new Error("Credit Guard PostgreSQL schema is incomplete. Apply migrations 001_credit_ledger.sql and 002_project_loop_checkpoint.sql.");
   }
   creditEngine = new PostgresCreditLedger(pool);
+  projectEngine = new PostgresProjectStore(pool);
+  loopGuard = new PostgresLoopStore(pool);
+  checkpointStore = new PostgresCheckpointStore(pool);
   ledgerMode = "postgresql (durable, transactional)";
+  stateMode = "postgresql (durable)";
 } else {
   creditEngine = new CreditEngine();
+  projectEngine = new ProjectEngine();
+  loopGuard = new LoopGuard();
+  checkpointStore = new InMemoryCheckpointStore();
   ledgerMode = "in-memory (non-durable, single-process; development only)";
+  stateMode = "in-memory (non-durable, single-process; development only)";
 }
 
 function toolError(error: unknown) {
@@ -57,6 +71,7 @@ server.tool(
         mode: "foundation",
         enforcement: "advisory-only",
         ledger: ledgerMode,
+        projectState: stateMode,
       }),
     }],
   }),
@@ -66,42 +81,79 @@ server.tool(
   "guard.project.create",
   "Create a tracked project with explicit milestones.",
   { id: z.string().min(1), goal: z.string().min(1), milestones: z.array(z.object({ id: z.string().min(1), title: z.string().min(1), required: z.boolean().optional() })).optional() },
-  async (args) => { try { return { content: [{ type: "text", text: JSON.stringify(projectEngine.create(args)) }] }; } catch (error) { return toolError(error); } },
+  async (args) => { try { return { content: [{ type: "text", text: JSON.stringify(await projectEngine.create(args)) }] }; } catch (error) { return toolError(error); } },
 );
 
 server.tool(
   "guard.project.get",
   "Get project lifecycle, milestones, and evidence.",
   { projectId: z.string().min(1) },
-  async ({ projectId }) => { try { return { content: [{ type: "text", text: JSON.stringify({ project: projectEngine.get(projectId), progress: projectEngine.progress(projectId) }) }] }; } catch (error) { return toolError(error); } },
+  async ({ projectId }) => { try { return { content: [{ type: "text", text: JSON.stringify({ project: await projectEngine.get(projectId), progress: await projectEngine.progress(projectId) }) }] }; } catch (error) { return toolError(error); } },
 );
 
 server.tool(
   "guard.project.transition",
   "Move a project through a validated lifecycle transition.",
   { projectId: z.string().min(1), state: z.enum(["PLANNING", "EXECUTING", "VERIFYING", "COMPLETED", "PAUSED", "BLOCKED", "FAILED"]) },
-  async ({ projectId, state }) => { try { return { content: [{ type: "text", text: JSON.stringify(projectEngine.transition(projectId, state)) }] }; } catch (error) { return toolError(error); } },
+  async ({ projectId, state }) => { try { return { content: [{ type: "text", text: JSON.stringify(await projectEngine.transition(projectId, state)) }] }; } catch (error) { return toolError(error); } },
 );
 
 server.tool(
   "guard.project.record_evidence",
-  "Attach evidence to a milestone. Only evidence explicitly marked verified completes a milestone; verification must be performed by a trusted integration.",
-  { projectId: z.string().min(1), milestoneId: z.string().min(1), kind: z.enum(["artifact", "test", "file_change", "milestone"]), reference: z.string().min(1), verified: z.boolean() },
-  async ({ projectId, milestoneId, kind, reference, verified }) => { try { return { content: [{ type: "text", text: JSON.stringify(projectEngine.recordEvidence({ projectId, milestoneId, evidence: { kind, reference, verified } })) }] }; } catch (error) { return toolError(error); } },
+  "Attach evidence as unverified. A separate trusted verification step is required before it can complete a milestone.",
+  { projectId: z.string().min(1), milestoneId: z.string().min(1), kind: z.enum(["artifact", "test", "file_change", "milestone"]), reference: z.string().min(1) },
+  async ({ projectId, milestoneId, kind, reference }) => { try {
+    const result = projectEngine instanceof PostgresProjectStore
+      ? await projectEngine.recordEvidence({ projectId, milestoneId, kind, reference })
+      : projectEngine.recordEvidence({ projectId, milestoneId, evidence: { kind, reference, verified: false } });
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+  } catch (error) { return toolError(error); } },
+);
+
+server.tool(
+  "guard.project.verify_evidence",
+  "Mark evidence verified after an external test, artifact, or file check has actually been inspected. This tool trusts the caller and is not a cryptographic verifier.",
+  { projectId: z.string().min(1), milestoneId: z.string().min(1), reference: z.string().min(1), verificationSource: z.string().min(1) },
+  async ({ projectId, milestoneId, reference, verificationSource }) => { try {
+    const result = projectEngine instanceof PostgresProjectStore
+      ? await projectEngine.verifyEvidence({ projectId, milestoneId, reference, verificationSource })
+      : projectEngine.verifyEvidence({ projectId, milestoneId, reference, verificationSource });
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+  } catch (error) { return toolError(error); } },
+);
+
+server.tool(
+  "guard.checkpoint.save",
+  "Save resumable project state. Do not include API keys, secrets, or raw private prompts.",
+  { projectId: z.string().min(1), goal: z.string().min(1), nextStep: z.string().min(1), artifactRefs: z.array(z.string()), errors: z.array(z.string()), modelConfig: z.record(z.unknown()) },
+  async ({ projectId, ...payload }) => { try {
+    const result = await checkpointStore.save(projectId, payload);
+    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+  } catch (error) { return toolError(error); } },
+);
+
+server.tool(
+  "guard.checkpoint.latest",
+  "Retrieve the latest checkpoint for a project to resume work.",
+  { projectId: z.string().min(1) },
+  async ({ projectId }) => { try {
+    const result = await checkpointStore.latest(projectId);
+    return { content: [{ type: "text", text: JSON.stringify(result ?? { found: false }) }] };
+  } catch (error) { return toolError(error); } },
 );
 
 server.tool(
   "guard.loop.record",
   "Record a request, retry, error, or verified progress event and assess loop risk.",
   { projectId: z.string().min(1), kind: z.enum(["request", "error", "retry", "progress"]), signature: z.string().optional() },
-  async (args) => { try { return { content: [{ type: "text", text: JSON.stringify(loopGuard.record(args)) }] }; } catch (error) { return toolError(error); } },
+  async (args) => { try { return { content: [{ type: "text", text: JSON.stringify(await loopGuard.record(args)) }] }; } catch (error) { return toolError(error); } },
 );
 
 server.tool(
   "guard.loop.assess",
   "Assess recent retry, repeated-error, and no-progress patterns for a project.",
   { projectId: z.string().min(1) },
-  async ({ projectId }) => ({ content: [{ type: "text", text: JSON.stringify(loopGuard.assess(projectId)) }] }),
+  async ({ projectId }) => ({ content: [{ type: "text", text: JSON.stringify(await loopGuard.assess(projectId)) }] }),
 );
 
 server.tool(
@@ -110,9 +162,9 @@ server.tool(
   { projectId: z.string().min(1), estimatedCostMicros: z.number().int().nonnegative(), checkpointAvailable: z.boolean().optional() },
   async ({ projectId, estimatedCostMicros, checkpointAvailable }) => {
     try {
-      const [credit, project] = await Promise.all([creditEngine.getStatus(projectId), Promise.resolve(projectEngine.get(projectId))]);
-      const progress = projectEngine.progress(projectId);
-      const loop = loopGuard.assess(projectId);
+      const [credit, project] = await Promise.all([creditEngine.getStatus(projectId), projectEngine.get(projectId)]);
+      const progress = await projectEngine.progress(projectId);
+      const loop = await loopGuard.assess(projectId);
       return { content: [{ type: "text", text: JSON.stringify(decisionEngine.decide({ credit, projectState: project.state, progressPercent: progress.percent, estimatedCostMicros, loop, checkpointAvailable })) }] };
     } catch (error) { return toolError(error); }
   },
