@@ -15,18 +15,23 @@
 - [x] Concurrency and failure test cases added
 - [x] PostgreSQL schema and durable ledger adapter implemented
 - [x] MCP DATABASE_URL selection with explicit in-memory development fallback
-- [ ] PostgreSQL migration and adapter integration tests
-- [ ] Distributed concurrency and failure tests
+- [x] PostgreSQL migration and adapter integration tests in CI
+- [x] Concurrent reservation test against PostgreSQL
+- [ ] Distributed load, crash-recovery, and failover tests
 
 ## Phase 3: Project + Loop Engine
-- [ ] Project lifecycle and evidence-based progress
-- [ ] Retry/error loop detection
-- [ ] Checkpoint save and resume contracts
+- [x] Project lifecycle and evidence-based progress
+- [x] PostgreSQL project and milestone persistence
+- [x] Persistent retry/error loop detection
+- [x] Checkpoint save and latest-resume contract
+- [ ] External artifact verifier integration
 
 ## Phase 4: Decision Engine
-- [ ] Explainable decision policy
-- [ ] Budget + progress-aware decisions
-- [ ] Policy configuration and test matrix
+- [x] Explainable decision policy
+- [x] Budget + progress-aware decisions
+- [x] Loop-aware pause and checkpoint recommendations
+- [x] Context selection under a character budget
+- [ ] Configurable policy profiles and broader evaluation matrix
 
 ## Phase 5: Gateway enforcement
 - [ ] Fastify gateway
@@ -35,8 +40,10 @@
 - [ ] Credential isolation and request audit
 
 ## Phase 6: Validation
+- [x] PostgreSQL integration tests in CI
 - [ ] Integration tests with representative agents
 - [ ] Measure cost saved, false blocks, latency, and task completion
+- [ ] Multi-process/load/failover tests
 - [ ] Security review before production claims
 
 No phase is considered production-ready until its tests and security review are complete.
