@@ -8,8 +8,11 @@ export class DecisionEngine {
     if (input.loop.action === "PAUSE") {
       return { action: "CHECKPOINT_PAUSE", reasons: [input.loop.reason], estimatedCostMicros: input.estimatedCostMicros, availableMicros: input.credit.availableMicros, shouldCheckpoint: input.checkpointAvailable ?? true };
     }
-    if (input.credit.overBudget || input.estimatedCostMicros > input.credit.availableMicros) {
-      return { action: "BLOCK", reasons: [input.credit.overBudget ? "PROJECT_OVER_BUDGET" : "INSUFFICIENT_CREDIT"], estimatedCostMicros: input.estimatedCostMicros, availableMicros: input.credit.availableMicros, shouldCheckpoint: input.checkpointAvailable ?? true };
+    if (input.credit.overBudget) {
+      return { action: "BLOCK", reasons: ["PROJECT_OVER_BUDGET"], estimatedCostMicros: input.estimatedCostMicros, availableMicros: input.credit.availableMicros, shouldCheckpoint: input.checkpointAvailable ?? true };
+    }
+    if (input.estimatedCostMicros > input.credit.availableMicros) {
+      return { action: "OPTIMIZE", reasons: ["INSUFFICIENT_CREDIT_TRY_LOWER_COST"], estimatedCostMicros: input.estimatedCostMicros, availableMicros: input.credit.availableMicros, shouldCheckpoint: true };
     }
     if (input.projectState === "BLOCKED" || input.projectState === "PAUSED") reasons.push("PROJECT_REQUIRES_INTERVENTION");
     if (input.loop.action === "WARN") reasons.push(input.loop.reason);
