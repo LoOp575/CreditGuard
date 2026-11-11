@@ -13,12 +13,12 @@ function extractExplicitConstraints(prompt: string): string[] {
 
 function classifyCodingTask(prompt: string): "build" | "debug" | "modify" | "optimize" | "analyze" | "integrate" | "other" {
   const value = prompt.toLowerCase();
-  if (/\b(debug|bug|error|fix|perbaiki|perbaikan|gagal|crash|errornya)\b/.test(value)) return "debug";
-  if (/\b(optimasi|optimalkan|optimize|optimization|lebih cepat|lebih ringan|refactor|rapikan kode)\b/.test(value)) return "optimize";
-  if (/\b(integrasi|integrasikan|integrate|integration|hubungkan|connect|webhook|api pihak ketiga)\b/.test(value)) return "integrate";
-  if (/\b(analisis|analisa|audit|review|inspect|investigasi|jelaskan kode)\b/.test(value)) return "analyze";
-  if (/\b(ubah|tambahkan|tambah|modifikasi|update|perbarui|ubah fitur|modify|extend)\b/.test(value)) return "modify";
-  if (/\b(buat|bangun|build|develop|create|kembangkan|bikin|implementasikan)\b/.test(value)) return "build";
+  if (/\b(debug|bug|error|fix|perbaiki|perbaikan|gagal|crash|errornya|arreglar|corrigir|corriger|beheben)\b/.test(value)) return "debug";
+  if (/\b(optimasi|optimalkan|optimize|optimization|lebih cepat|lebih ringan|refactor|rapikan kode|optimizar|otimizar|optimiser|optimieren)\b/.test(value)) return "optimize";
+  if (/\b(integrasi|integrasikan|integrate|integration|hubungkan|connect|webhook|api pihak ketiga|integrar|criar integração|intégrer|integrieren)\b/.test(value)) return "integrate";
+  if (/\b(analisis|analisa|audit|review|inspect|investigasi|jelaskan kode|analizar|analisar|analyser|analysieren)\b/.test(value)) return "analyze";
+  if (/\b(ubah|tambahkan|tambah|modifikasi|update|perbarui|ubah fitur|modify|extend|modificar|alterar|modifier|ändern)\b/.test(value)) return "modify";
+  if (/\b(buat|bangun|build|develop|create|kembangkan|bikin|implementasikan|crear|construir|criar|développer|erstellen|bauen)\b/.test(value)) return "build";
   return "other";
 }
 
@@ -26,12 +26,12 @@ function inferTarget(prompt: string): string {
   const value = prompt.toLowerCase();
   const targets: string[] = [];
   const rules: Array<[RegExp, string]> = [
-    [/\b(website|web app|situs|frontend|front-end)\b/, "web application"],
+    [/\b(website|web app|situs|sitio|frontend|front-end)\b/, "web application"],
     [/\b(api|backend|back-end|server)\b/, "API / backend service"],
     [/\b(database|basis data|postgres|mysql|mongodb|sqlite)\b/, "database"],
     [/\b(bot|telegram bot|discord bot)\b/, "automation bot"],
     [/\b(tool|utility|cli|command line)\b/, "developer tool"],
-    [/\b(aplikasi|app|mobile|android|ios)\b/, "application"],
+    [/\b(aplikasi|aplicación|aplicativo|app|mobile|android|ios)\b/, "application"],
     [/\b(library|package|sdk|module)\b/, "software library / module"],
     [/\b(script|otomasi|automation)\b/, "script / automation"],
     [/\b(test|testing|unit test|integration test)\b/, "test suite"],
@@ -44,10 +44,10 @@ function inferTarget(prompt: string): string {
 
 function classify(prompt: string): TaskCategory {
   const value = prompt.toLowerCase();
-  if (/\b(debug|bug|error|fix|perbaiki|perbaikan|gagal|crash)\b/.test(value)) return "bug_fix";
-  if (/\b(research|riset|analisis|analisa|bandingkan|investigasi)\b/.test(value)) return "research";
+  if (/\b(debug|bug|error|fix|perbaiki|perbaikan|gagal|crash|arreglar|corrigir|corriger|beheben)\b/.test(value)) return "bug_fix";
+  if (/\b(research|riset|analisis|analisa|bandingkan|investigasi|analizar|analisar|analyser|analysieren)\b/.test(value)) return "research";
   if (/\b(tulis|buatkan artikel|draft|email|surat|konten|write)\b/.test(value)) return "writing";
-  if (/\b(buat|bangun|build|develop|aplikasi|website|sistem|platform|software|backend|frontend|payment|pembayaran|kasir|bot)\b/.test(value)) return "software_project";
+  if (/\b(buat|bangun|build|develop|aplikasi|aplicación|aplicativo|website|situs|sitio|sistem|platform|software|backend|frontend|payment|pembayaran|kasir|bot|crear|construir|criar|développer|erstellen|bauen)\b/.test(value)) return "software_project";
   return "general";
 }
 
@@ -75,7 +75,7 @@ const SEMANTIC_RULES: SemanticRule[] = [
   { pattern: /enak dipandang|nyaman dilihat|tidak menyakitkan mata|fácil de ver|agradável de usar|agréable à regarder|easy on the eyes/i, userPhrase: "Pleasant to look at", interpretation: "Clear visual hierarchy, balanced spacing, and consistent visual styling", category: "design", requiresDesignContext: true },
   { pattern: /tidak kaku|nggak kaku|gak kaku|lebih hidup|not rigid|natural interactions|dinâmico|dynamique/i, userPhrase: "Not rigid / dynamic", interpretation: "Dynamic layout and natural interactions", category: "usability", requiresDesignContext: true },
   { pattern: /nyaman dibuka di (hp|ponsel|mobile)|mudah digunakan di (hp|ponsel)|mobile[- ]friendly|fácil de usar en (el )?móvil|facile à utiliser sur mobile/i, userPhrase: "Comfortable on mobile", interpretation: "Mobile-friendly user experience", category: "usability" },
-  { pattern: /menyesuaikan (ukuran )?layar|semua ukuran layar|berbagai ukuran layar|responsive|responsivo|adaptable to screen sizes|s\\\x27adapte à toutes les tailles/i, userPhrase: "Adapts to screen sizes", interpretation: "Responsive design", category: "design" },
+  { pattern: /menyesuaikan (ukuran )?layar|semua ukuran layar|berbagai ukuran layar|responsive|responsivo|adaptable to screen sizes/i, userPhrase: "Adapts to screen sizes", interpretation: "Responsive design", category: "design" },
   { pattern: /\bresponsive\b|\bresponsif\b/i, userPhrase: "Responsive", interpretation: "Responsive design", category: "design" },
   { pattern: /tidak lemot|jangan lemot|cepat dibuka|loading cepat|performa cepat/i, userPhrase: "Tidak lemot / cepat", interpretation: "Web performance optimization", category: "performance" },
   { pattern: /aman|keamanan kuat|tidak mudah dibobol/i, userPhrase: "Aman / keamanan kuat", interpretation: "Apply appropriate application security controls", category: "security" },
