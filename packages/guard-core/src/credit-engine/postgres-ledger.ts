@@ -130,6 +130,10 @@ export class PostgresCreditLedger {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
+      const reference = await client.query("SELECT project_id FROM cg_reservations WHERE id = $1", [reservationId]);
+      if (!reference.rowCount) throw new ReservationNotFoundError(reservationId);
+      // Keep lock order consistent with reserve(): project row first, reservation second.
+      await client.query("SELECT project_id FROM cg_projects WHERE project_id = $1 FOR UPDATE", [reference.rows[0].project_id]);
       const found = await client.query("SELECT * FROM cg_reservations WHERE id = $1 FOR UPDATE", [reservationId]);
       if (!found.rowCount) throw new ReservationNotFoundError(reservationId);
       const reservation = reservationFrom(found.rows[0]);
