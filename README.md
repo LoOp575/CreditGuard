@@ -100,9 +100,9 @@ License not yet selected.
 
 ## Prompt and execution intelligence
 
-Use `guard.prompt.prepare` before starting a substantial task. It returns the unchanged original request, a structured execution brief, open questions, optional (unapproved) requirement suggestions, and a bounded task outline. Use `guard.failure.analyze` with prior attempts from project history before retrying a failed task. Use `guard.intent.check_scope` to compare task requirement IDs with the approved baseline, and `guard.quality.evaluate` to ensure required checks have evidence.
+Use `guard.prompt.prepare` before starting a substantial task. It returns the unchanged original request, objective, phrase-to-technical semantic interpretations, a concise `optimizedPrompt`, and `requiresSemanticReview`, alongside a structured execution brief, open questions, optional (unapproved) requirement suggestions, and a bounded task outline. Use `guard.failure.analyze` with prior attempts from project history before retrying a failed task. Use `guard.intent.check_scope` to compare task requirement IDs with the approved baseline, and `guard.quality.evaluate` to ensure required checks have evidence.
 
-The preparation logic is deliberately conservative and deterministic. It structures known information; it does not pretend to infer every hidden user intention. The connected Agent remains responsible for semantic interpretation, asking the user when critical decisions are missing, and actually executing the plan. Persist compact project summaries and attempt history in checkpoints; do not store secrets or unnecessary raw private prompts.
+The preparation logic is deliberately conservative and deterministic. Its first semantic dictionary maps explicit Indonesian phrases about design, usability, performance, and security into technical requirements. It only compresses facts covered by supported rules; ambiguous or unsupported requests are flagged for semantic review. It does not pretend to infer every hidden user intention. The connected Agent remains responsible for semantic interpretation, asking the user when critical decisions are missing, and actually executing the plan. Persist compact project summaries and attempt history in checkpoints; do not store secrets or unnecessary raw private prompts.
 
 
 ## Approval Gate
