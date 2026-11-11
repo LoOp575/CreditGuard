@@ -29,9 +29,11 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
     const provider=String(request.headers["x-credit-guard-provider"]??"") as ProviderName;
     const apiKey=String(request.headers["x-provider-api-key"]??"");
     if(!projectId.trim()||!apiKey.trim())return reply.code(400).send({error:"PROJECT_AND_PROVIDER_KEY_REQUIRED"});
-    if(!(provider in adapters))return reply.code(400).send({error:"UNSUPPORTED_PROVIDER"});
+    if(!Object.hasOwn(adapters,provider))return reply.code(400).send({error:"UNSUPPORTED_PROVIDER"});
     const body=request.body;
-    if(!body||typeof body.model!=="string"||!Array.isArray(body.messages)||!body.messages.length)return reply.code(400).send({error:"INVALID_REQUEST"});
+    if(!body||typeof body.model!=="string"||!Array.isArray(body.messages)||!body.messages.length||
+      !body.messages.every(m=>m&&typeof m.role==="string"&&typeof m.content==="string"))
+      return reply.code(400).send({error:"INVALID_REQUEST"});
     const maxTokens=body.max_tokens??1024;
     if(!Number.isSafeInteger(maxTokens)||maxTokens<1||maxTokens>32768)return reply.code(400).send({error:"INVALID_MAX_TOKENS"});
     const rate=pricing[`${provider}:${body.model}`];
