@@ -171,6 +171,17 @@ export class CreditEngine {
     });
   }
 
+  async listReservations(projectId: string, status?: "RESERVED" | "SETTLED" | "RELEASED"): Promise<CreditReservation[]> {
+    assertIdentifier(projectId, "projectId");
+    return this.exclusive(() => {
+      if (!this.projects.has(projectId)) throw new ProjectNotFoundError(projectId);
+      return [...this.reservations.values()]
+        .filter(r => r.projectId === projectId && (!status || r.status === status))
+        .sort((a,b) => a.createdAt.localeCompare(b.createdAt))
+        .map(r => ({ ...r }));
+    });
+  }
+
   async getStatus(projectId: string): Promise<CreditStatus> {
     assertIdentifier(projectId, "projectId");
     return this.exclusive(() => {
