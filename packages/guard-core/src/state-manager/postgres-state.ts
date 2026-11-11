@@ -89,7 +89,7 @@ export class PostgresProjectStore {
 export class PostgresLoopStore {
   constructor(private readonly pool:Pool,private readonly config:LoopGuardConfig=loopDefaults){}
   async record(event:LoopEvent):Promise<LoopAssessment>{
-    await this.pool.query("INSERT INTO cg_loop_events(project_id,kind,signature,occurred_at) VALUES($1,$2,$3,COALESCE(to_timestamp($4/1000.0),now()))",
+    await this.pool.query("INSERT INTO cg_loop_events(project_id,kind,signature,occurred_at) VALUES($1,$2,$3,COALESCE(to_timestamp($4::double precision/1000.0),now()))",
       [event.projectId,event.kind,event.signature??null,event.at??null]);
     return this.assess(event.projectId,event.at??Date.now());
   }
