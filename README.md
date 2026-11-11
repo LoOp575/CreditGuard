@@ -27,8 +27,8 @@ It helps agents estimate usage, reserve project budgets, detect wasteful retry l
 
 - TypeScript + Node.js
 - Official Model Context Protocol TypeScript SDK
-- PostgreSQL for durable project and audit data
-- Redis for counters, reservations, and fast state
+- PostgreSQL as the durable source of truth for budgets and reservations
+- Redis later for counters, loop state, and fast ephemeral coordination
 - Fastify for the future provider gateway
 - OpenTelemetry for observability
 
@@ -47,14 +47,15 @@ docs/               Architecture, security, roadmap
 
 ## Development status
 
-The repository now includes an MCP foundation and a first Credit Engine implementation:
+The repository now includes an MCP foundation, an in-memory reference engine, and an initial PostgreSQL ledger adapter:
 - Project budget creation and status
 - Preflight checks
-- Atomic in-process reservations with idempotency keys
+- Durable reservations with per-project row locking and idempotency constraints
 - Actual-usage settlement and unused-reservation release
-- Tests for concurrency, idempotency, budget overruns, and release behavior
+- A PostgreSQL migration and optional DATABASE_URL-based MCP selection
+- In-memory unit tests for concurrency, idempotency, budget overruns, and release behavior
 
-**Important limitation:** the current ledger is in-memory and single-process. State is lost on restart, and its lock does not coordinate multiple server instances. It is a development/reference implementation, not a production spending boundary. PostgreSQL transactions and durable idempotency constraints are required before production enforcement.
+**Important limitation:** the PostgreSQL adapter and migration have been committed but have not yet been compiled or integration-tested against a live PostgreSQL instance. Without DATABASE_URL, MCP explicitly uses the non-durable in-memory development ledger. Apply the migration before starting with DATABASE_URL. Do not treat this as production-ready until database integration, multi-instance concurrency, crash-recovery, and security tests pass.
 
 ## Local setup
 
@@ -62,6 +63,11 @@ Requirements: Node.js 20+ and pnpm.
 
 ```bash
 pnpm install
+
+# Optional local PostgreSQL
+docker compose up -d postgres
+# Apply database/migrations/001_credit_ledger.sql using psql or your migration runner.
+# Then set DATABASE_URL in .env and start MCP.
 pnpm --filter @credit-guard/mcp-server dev
 ```
 
