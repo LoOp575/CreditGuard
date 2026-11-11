@@ -2,7 +2,7 @@ import Fastify from "fastify";
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { PostgresCreditLedger } from "@credit-guard/guard-core";
-import { createProviderAdapters, type ProviderName } from "./provider-adapters.js";
+import { createProviderAdapters, type ProviderName, type ProviderResult } from "./provider-adapters.js";
 
 type Pricing={inputUsdPerMillion:number;outputUsdPerMillion:number};
 const databaseUrl=process.env.DATABASE_URL;
@@ -62,7 +62,7 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
       await ledger.release(reservation.id);
       return reply.code(503).send({error:"AUDIT_WRITE_FAILED",warning:"Provider request was not dispatched; reservation released."});
     }
-    let result: Awaited<ReturnType<typeof adapters[ProviderName]["send"]>>;
+    let result: ProviderResult;
     try{
       result=await adapters[provider].send({model:body.model,messages:body.messages,maxTokens,temperature:body.temperature},apiKey);
     }catch{
