@@ -54,3 +54,7 @@ test("fingerprinting rejects undefined and non-JSON payload values", () => {
   assert.throws(() => createActionScopeFingerprint("FILE_WRITE", { path: undefined }), /FINGERPRINT_UNDEFINED_VALUE/);
   assert.throws(() => createActionScopeFingerprint("FILE_WRITE", { amount: Number.NaN }), /FINGERPRINT_NON_FINITE_NUMBER/);
 });
+
+test("terminal commands require security-sensitive approval", () => {
+  assert.equal(approvalClassForAction("TERMINAL_COMMAND"), "SECURITY_SENSITIVE");
+});
