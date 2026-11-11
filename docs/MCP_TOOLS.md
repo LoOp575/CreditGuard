@@ -139,3 +139,16 @@ Set `APPROVAL_AUTHORITY_TOKEN` to a random secret of at least 24 characters. Onl
 | `verification` | Suggested checks appropriate to the task |
 
 This is a deterministic first-pass schema, not a claim of full natural-language understanding. The original prompt remains authoritative. Agents must inspect project files, clarify critical unknowns, and verify changes with evidence. Do not assume a detected target or task type is sufficient to execute a change safely.
+
+
+## Unified execution orchestrator
+
+| Tool | Purpose |
+|---|---|
+| `guard.orchestrator.evaluate` | Combines prompt preparation, requirement-scope assessment, quality evidence, current project progress, loop risk, and credit decision into one execution recommendation. |
+
+Input requires `projectId`, `rawPrompt`, estimated cost in USD micros, approved and requested requirement IDs, and quality checks. The tool reads the current credit status, project state/progress, and Loop Guard assessment from the configured stores. It returns the individual subsystem results, gate booleans, warnings, `executionStatus`, and `nextAction`.
+
+Possible next actions: `BLOCK`, `PAUSE_AND_CHECKPOINT`, `OPTIMIZE_COST`, `ASK_FOR_CLARIFICATION`, `REQUEST_SCOPE_APPROVAL`, `EXECUTE_WITH_GUARDRAILS`, and `VERIFY_BEFORE_COMPLETION`.
+
+This is an advisory decision-composition layer, not an action firewall. It does not automatically invoke a human approval UI, intercept filesystem/deployment tools, reserve credit, or dispatch provider requests. The Agent integration must obey the recommendation; the Gateway remains necessary for mediated provider spend enforcement. An empty approved requirement baseline deliberately returns scope review rather than silently allowing work.
