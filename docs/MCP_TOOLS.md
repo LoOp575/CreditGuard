@@ -153,3 +153,19 @@ Input requires `projectId`, `rawPrompt`, estimated cost in USD micros, approved 
 Possible next actions: `BLOCK`, `PAUSE_AND_CHECKPOINT`, `OPTIMIZE_COST`, `ASK_FOR_CLARIFICATION`, `REQUEST_SCOPE_APPROVAL`, `EXECUTE_WITH_GUARDRAILS`, and `VERIFY_BEFORE_COMPLETION`.
 
 This is an advisory decision-composition layer, not an action firewall. It does not automatically invoke a human approval UI, intercept filesystem/deployment tools, reserve credit, or dispatch provider requests. The Agent integration must obey the recommendation; the Gateway remains necessary for mediated provider spend enforcement. An empty approved requirement baseline deliberately returns scope review rather than silently allowing work.
+
+
+## Trusted Agent adapter package
+
+The workspace package `@credit-guard/agent-adapter` provides host-side adapters rather than additional public MCP tools:
+
+| Adapter | Operation | Required approval |
+|---|---|---|
+| `GuardedFilesystemAdapter` | Workspace read/write/overwrite/delete | Overwrite/delete: `DESTRUCTIVE_ACTION` |
+| `GuardedTerminalAdapter` | Run trusted executable profile | Every command: `SECURITY_SENSITIVE` |
+| `GuardedDatabaseAdapter` | Run host-registered migration by ID | `PRODUCTION_CHANGE` |
+| `GuardedDeploymentAdapter` | Invoke host-registered deployment target | `PRODUCTION_CHANGE` |
+
+Use `createPostgresActionAuthorizer(pool)` as the adapter authorization callback. It reads `cg_approval_requests` directly and checks approval state, expiry using PostgreSQL time, project, approval class, and exact scope fingerprint. A missing approval or database error never dispatches the protected operation. The terminal action type `TERMINAL_COMMAND` maps to `SECURITY_SENSITIVE` in `guard.action.authorize`.
+
+The terminal adapter does not invoke a shell and accepts only executable profiles registered by the host. The database adapter does not accept Agent-provided SQL; it accepts a trusted migration ID and validates the host-registered SQL checksum. The deployment adapter requires a trusted provider handler. None of these adapters can prevent bypass through unwrapped tools or direct host access. Keep the raw resource handles and credentials outside the Agent, and run the Agent in a least-privilege OS/container sandbox.
