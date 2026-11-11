@@ -114,3 +114,10 @@ Credit Guard exposes `guard.approval.request`, `guard.approval.get`, `guard.appr
 ## Unified execution orchestrator
 
 `guard.orchestrator.evaluate` composes the existing intelligence and policy modules into a single explainable recommendation. It reads project, budget, progress, and loop state, then reports whether the Agent should block, pause, optimize cost, clarify intent, request scope approval, execute with guardrails, or verify before completion. This is advisory composition only: it does not intercept arbitrary Agent tools or provider calls, and does not replace the Gateway or trusted approval/verifier integrations. See `docs/MCP_TOOLS.md` for the input contract and enforcement boundary.
+
+
+## Trusted action adapter
+
+The guard-core package exports `executeWithGuard` and `createActionScopeFingerprint`. A trusted tool handler wraps its real dispatch function with this adapter. It computes a SHA-256 fingerprint from the action class and canonicalized payload, asks a trusted authorization callback, and invokes the handler only when the callback returns `allowed: true`.
+
+The authorization callback must read approval state from a trusted server-side source. Never trust an Agent-supplied authorization boolean or fingerprint. Compute the fingerprint immediately before dispatch from the exact payload that will be executed. Keep the dispatch function private and do not expose an alternate unguarded route. If the authorization service errors or is unavailable, execution stops. This is a reusable reference adapter, not a global OS sandbox: it cannot intercept arbitrary third-party tools, direct shell access, or provider calls that bypass the Gateway. Every integration must wrap all relevant execution paths.
