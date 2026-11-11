@@ -32,7 +32,8 @@
 - [x] Loop-aware pause and checkpoint recommendations
 - [x] Context selection under a character budget
 - [x] Cheaper-model fallback when the estimate is over/near remaining credit and a configured fallback is cheaper and affordable
-- [ ] Configurable policy profiles and broader evaluation matrix
+- [x] Configurable low-budget and low-progress policy thresholds
+- [ ] Named policy profiles and broader evaluation matrix
 
 ## Phase 5: Gateway enforcement
 - [x] Fastify Gateway HTTP service
