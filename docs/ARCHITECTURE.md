@@ -66,3 +66,10 @@ The MCP tools expose:
 - `guard.quality.evaluate`: evaluate explicit checks; required checks need passing results and evidence references.
 
 These tools complement the existing Loop Guard, Context Optimizer, Project Engine, Decision Engine, Credit Engine, and Gateway. They do not independently observe an Agent's filesystem or force an external Agent to call them. Reliable enforcement requires Agent integration and, for provider spend control, routing model traffic through the Gateway.
+
+
+## Approval Gate
+
+The Approval Gate records explicit decisions for scope, architecture, destructive, production, spending-limit, and security-sensitive actions. Requests are idempotent and expire; approvals bind to a project and exact scope fingerprint. The PostgreSQL ledger is authoritative when configured. Resolution requires `APPROVAL_AUTHORITY_TOKEN`, which belongs only to a trusted human approval interface/operator and must never enter Agent context. The check is fail-closed for missing, pending, rejected, expired, or mismatched approvals.
+
+The MCP implementation exposes the request/get/resolve/check contract. It is not yet a universal action firewall: a model-controlled Agent can ignore a check or use an unmediated tool. Hard enforcement requires the Agent Integration Orchestrator to gate every privileged tool adapter and keep approval authority outside the model's reach. The Gateway currently does not intercept arbitrary non-provider actions.
