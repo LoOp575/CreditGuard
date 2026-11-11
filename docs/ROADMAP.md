@@ -69,3 +69,13 @@ No phase is considered production-ready until its tests and security review are 
 - [ ] Durable storage for refined briefs, requirement baselines, and failure strategy history
 - [ ] Representative-agent integration tests proving tools are called at the right lifecycle points
 - [ ] Benchmark cost per successfully verified task against an unguarded baseline
+
+
+## Phase 8: Approval Gate
+- [x] Approval request contract with action categories, idempotency, and expiry
+- [x] Trusted-authority resolution with server-side secret verification
+- [x] Fail-closed project and scope-fingerprint check
+- [x] PostgreSQL approval ledger migration
+- [ ] Trusted human approval UI/operator integration
+- [ ] Agent Orchestrator enforcement before privileged tool calls
+- [ ] End-to-end tests for expiry, replay, scope mismatch, unauthorized resolution, and concurrent decisions
