@@ -21,10 +21,20 @@ export interface PreparedTask {
   completionEvidence: string[];
 }
 
+export interface SemanticInterpretation {
+  userPhrase: string;
+  interpretation: string;
+  category: "design" | "usability" | "performance" | "security";
+}
+
 export interface PreparedPrompt {
   version: "1";
   originalPrompt: string;
   normalizedGoal: string;
+  objective: string;
+  semanticInterpretations: SemanticInterpretation[];
+  optimizedPrompt: string;
+  requiresSemanticReview: boolean;
   category: TaskCategory;
   projectMode: "new" | "existing" | "unknown";
   explicitConstraints: string[];
