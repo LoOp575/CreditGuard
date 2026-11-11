@@ -80,6 +80,8 @@ export class PostgresCreditLedger {
 
   async listReservations(projectId: string, status?: "RESERVED" | "SETTLED" | "RELEASED"): Promise<CreditReservation[]> {
     assertText(projectId, "projectId");
+    const project = await this.pool.query("SELECT 1 FROM cg_projects WHERE project_id = $1", [projectId]);
+    if (!project.rowCount) throw new ProjectNotFoundError(projectId);
     const result = await this.pool.query(
       "SELECT * FROM cg_reservations WHERE project_id = $1 AND ($2::text IS NULL OR status = $2) ORDER BY created_at",
       [projectId, status ?? null],
