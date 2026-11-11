@@ -30,9 +30,9 @@ Progress must be supported by observable evidence such as test results, file cha
 
 ## Credit Engine implementation status
 
-The first reference implementation lives in `packages/guard-core/src/credit-engine`. Money is represented as integer USD micros (1 USD = 1,000,000 micros) to avoid floating-point accounting errors. The in-memory ledger serializes mutations within one Node.js process and supports idempotency keys.
+Money is represented as integer USD micros (1 USD = 1,000,000 micros). `CreditEngine` remains the in-memory reference adapter for unit tests. `PostgresCreditLedger` is the durable adapter: it stores projects and reservations in PostgreSQL, locks the project row during reservation, enforces a unique `(project_id, idempotency_key)` constraint, and commits settlement and reservation state changes in one transaction. The MCP server selects PostgreSQL when `DATABASE_URL` is set and verifies that the migration tables exist at startup; otherwise it reports the in-memory development mode.
 
-This is intentionally not a durable or distributed ledger. Restarting the process loses its state, and multiple server instances do not share a lock. Replace the adapter with transactional PostgreSQL storage before relying on it for real provider spending.
+The adapter is an initial implementation, not yet production-validated. Integration tests against PostgreSQL, concurrent multi-process tests, crash-recovery tests, and security review remain required. Redis is not the authoritative credit ledger.
 
 ## Budget safety
 
