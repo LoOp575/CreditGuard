@@ -1,7 +1,7 @@
 import Fastify from "fastify";
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
-import { PostgresCreditLedger } from "@credit-guard/guard-core";
+import { PostgresCreditLedger, PostgresProjectStore, PostgresLoopStore, DecisionEngine } from "@credit-guard/guard-core";
 import { createProviderAdapters, type ProviderName, type ProviderResult } from "./provider-adapters.js";
 import { estimateCostMicros, actualCostMicros as calculateActualCostMicros } from "./pricing.js";
 
@@ -16,9 +16,12 @@ if(!Object.keys(projectTokens).length||Object.values(projectTokens).some(token=>
 if(!Number.isFinite(safetyMultiplier)||safetyMultiplier<1||safetyMultiplier>5)throw new Error("ESTIMATE_SAFETY_MULTIPLIER must be between 1 and 5");
 
 const pool=new Pool({connectionString:databaseUrl,max:20});
-const schema=await pool.query("SELECT to_regclass('public.cg_projects') AS projects,to_regclass('public.cg_reservations') AS reservations,to_regclass('public.cg_gateway_requests') AS gateway_requests");
-if(!schema.rows[0]?.projects||!schema.rows[0]?.reservations||!schema.rows[0]?.gateway_requests){await pool.end();throw new Error("Apply migrations 001_credit_ledger.sql and 003_gateway_audit.sql before starting Gateway");}
+const schema=await pool.query("SELECT to_regclass('public.cg_projects') AS projects,to_regclass('public.cg_reservations') AS reservations,to_regclass('public.cg_gateway_requests') AS gateway_requests,to_regclass('public.cg_guard_projects') AS guard_projects,to_regclass('public.cg_loop_events') AS loop_events");
+if(!schema.rows[0]?.projects||!schema.rows[0]?.reservations||!schema.rows[0]?.gateway_requests||!schema.rows[0]?.guard_projects||!schema.rows[0]?.loop_events){await pool.end();throw new Error("Apply migrations 001, 002, and 003 before starting Gateway");}
 const ledger=new PostgresCreditLedger(pool);
+const projectStore=new PostgresProjectStore(pool);
+const loopStore=new PostgresLoopStore(pool);
+const decisionEngine=new DecisionEngine();
 const adapters=createProviderAdapters();
 const app=Fastify({logger:false,bodyLimit:2*1024*1024});
 app.get("/health",async()=>({service:"credit-guard-gateway",status:"ok",mode:"enforced-proxy",providers:Object.keys(adapters)}));
@@ -50,6 +53,18 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
     const estimate=estimateCostMicros(JSON.stringify(body.messages).length,maxTokens,rate,safetyMultiplier);
     const estimatedInputTokens=estimate.inputTokens;
     const estimatedCostMicros=estimate.costMicros;
+    let loopAssessment;
+    try{
+      loopAssessment=await loopStore.record({projectId,kind:"request"});
+      const [credit,project,progress]=await Promise.all([
+        ledger.getStatus(projectId),projectStore.get(projectId),projectStore.progress(projectId)
+      ]);
+      const decision=decisionEngine.decide({credit,projectState:project.state,progressPercent:progress.percent,
+        estimatedCostMicros,loop:loopAssessment,checkpointAvailable:true});
+      if(decision.action!=="ALLOW")return reply.code(409).send({error:"GUARD_DECISION",decision});
+    }catch(error){
+      return reply.code(404).send({error:"PROJECT_OR_BUDGET_NOT_CONFIGURED",message:error instanceof Error?error.message:"Project state unavailable"});
+    }
     const idempotencyKey=randomUUID();
     let reservation: Awaited<ReturnType<PostgresCreditLedger["reserve"]>>;
     try{reservation=await ledger.reserve({projectId,estimatedCostMicros:Math.max(1,estimatedCostMicros),idempotencyKey});}
@@ -67,6 +82,7 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
       result=await adapters[provider].send({model:body.model,messages:body.messages,maxTokens,temperature:body.temperature},apiKey);
     }catch{
       await pool.query("UPDATE cg_gateway_requests SET status='UNKNOWN',updated_at=now() WHERE request_id=$1",[requestId]);
+      try{await loopStore.record({projectId,kind:"error",signature:"UPSTREAM_TRANSPORT"});}catch{}
       return reply.code(502).send({error:"UPSTREAM_OUTCOME_UNKNOWN",requestId,reservationId:reservation.id,
         warning:"Provider outcome and billing are uncertain; reservation remains held for reconciliation."});
     }
@@ -75,6 +91,7 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
       actualCostMicros=calculateActualCostMicros(result.usage,rate);
       try{await ledger.settle(reservation.id,actualCostMicros);}
       catch{
+        try{await loopStore.record({projectId,kind:"error",signature:"LEDGER_RECONCILIATION"});}catch{}
         await pool.query("UPDATE cg_gateway_requests SET status='RECONCILIATION_ERROR',actual_cost_micros=$2,input_tokens=$3,output_tokens=$4,updated_at=now() WHERE request_id=$1",
           [requestId,String(actualCostMicros),result.usage.inputTokens,result.usage.outputTokens]);
         return reply.code(502).send({error:"RECONCILIATION_FAILED",requestId,reservationId:reservation.id,
@@ -86,6 +103,7 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
     await pool.query("UPDATE cg_gateway_requests SET status=$2,actual_cost_micros=$3,input_tokens=$4,output_tokens=$5,updated_at=now() WHERE request_id=$1",
       [requestId,auditStatus,actualCostMicros===null?null:String(actualCostMicros),result.usage?.inputTokens??null,result.usage?.outputTokens??null]);
     if(!providerSucceeded){
+      try{await loopStore.record({projectId,kind:"error",signature:"PROVIDER_HTTP_"+result.status});}catch{}
       return reply.code(result.status).send({error:"PROVIDER_ERROR",providerBody:result.body,requestId,
         reservationId:reservation.id,usageKnown:Boolean(result.usage),
         warning:result.usage?"Provider usage was reconciled.":"Usage is unknown; reservation remains held for manual reconciliation."});
