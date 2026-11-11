@@ -11,3 +11,9 @@ test("allows healthy affordable work", () => assert.equal(new DecisionEngine().d
 test("recommends optimization when estimate exceeds available credit", () => assert.equal(new DecisionEngine().decide({ ...base, estimatedCostMicros: 10_000_000 }).action, "OPTIMIZE"));
 test("blocks an already over-budget project", () => assert.equal(new DecisionEngine().decide({ ...base, credit: { ...base.credit, overBudget: true } }).action, "BLOCK"));
 test("checkpoints when loop guard pauses", () => assert.equal(new DecisionEngine().decide({ ...base, loop: { ...base.loop, action: "PAUSE", reason: "NO_PROGRESS" } }).action, "CHECKPOINT_PAUSE"));
+
+test("loop warning requires intervention even when cheaper model could fit", () => {
+  const result = new DecisionEngine().decide({ ...base, estimatedCostMicros: 10_000_000,
+    loop: { ...base.loop, action: "WARN", reason: "LOOP_RISK" } });
+  assert.equal(result.action, "INTERVENE");
+});
