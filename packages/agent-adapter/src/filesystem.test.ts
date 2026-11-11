@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { GuardedFilesystemAdapter } from "./filesystem.js";
@@ -60,4 +60,26 @@ test("path traversal is rejected before authorization", async () => {
     await assert.rejects(() => adapter.write("../outside.txt", "bad"), /PATH_OUTSIDE_WORKSPACE/);
     assert.equal(called, false);
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+
+test("filesystem rejects symlink files and parent directories escaping the workspace", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "cg-adapter-root-"));
+  const outside = await mkdtemp(path.join(os.tmpdir(), "cg-adapter-outside-"));
+  try {
+    await writeFile(path.join(outside, "secret.txt"), "secret");
+    await symlink(path.join(outside, "secret.txt"), path.join(root, "secret-link"));
+    await symlink(outside, path.join(root, "outside-dir"));
+    const adapter = await GuardedFilesystemAdapter.create({
+      rootDirectory: root, projectId: "test-project",
+      authorize: async () => ({ allowed: true, reason: "OK" }),
+    });
+    await assert.rejects(() => adapter.read("secret-link"), /UNSAFE_FILE_TARGET/);
+    await assert.rejects(() => adapter.write("secret-link", "overwrite"), /UNSAFE_FILE_TARGET/);
+    await assert.rejects(() => adapter.write("outside-dir/new.txt", "escape"), /PATH_OUTSIDE_WORKSPACE/);
+    assert.equal(await readFile(path.join(outside, "secret.txt"), "utf8"), "secret");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  }
 });
