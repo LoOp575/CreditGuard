@@ -24,6 +24,7 @@
 - [x] PostgreSQL project and milestone persistence
 - [x] Persistent retry/error loop detection
 - [x] Checkpoint save and latest-resume contract
+- [x] Separate verifier-secret gate for milestone completion
 - [ ] External artifact verifier integration
 
 ## Phase 4: Decision Engine
