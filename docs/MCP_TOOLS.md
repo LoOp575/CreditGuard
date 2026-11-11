@@ -90,3 +90,18 @@ The unresolved list contains metadata only, not prompts or credentials. Once a r
 - Without `DATABASE_URL`, MCP uses in-memory development adapters. Data disappears on process restart and cannot coordinate across processes.
 - With `DATABASE_URL`, MCP requires migrations 001, 002, and 003 and uses PostgreSQL for durable state.
 - MCP alone is advisory. The Gateway is required to mediate provider calls, and direct provider credentials must not remain available to an Agent that is meant to be restricted.
+
+
+## Prompt and execution intelligence
+
+### `guard.prompt.prepare`
+Call before substantial work. Input: `rawPrompt`, optional `projectMode`, `techStack`, and `constraints`. Output preserves the original request and provides a structured brief, unknowns, optional suggested requirements, task phases, and execution rules. Suggested requirements are not user-approved scope.
+
+### `guard.failure.analyze`
+Call before retrying a failed task. Supply the current `errorSignature`, `strategySignature`, and `previousAttempts` from project history. It returns `DIAGNOSE`, `REPLAN`, or `PAUSE`. Persist attempt history in project checkpoints so the analysis remains useful across sessions.
+
+### `guard.intent.check_scope`
+Compare `taskRequirementIds` with `approvedRequirementIds`. It returns `ALLOW` or `REVIEW`. This is a deterministic ID-based check and does not replace semantic review by the Agent.
+
+### `guard.quality.evaluate`
+Supply verification checks with `id`, `description`, `required`, `passed`, and optional `evidenceRef`. A required check cannot pass without both a passing result and an evidence reference.
