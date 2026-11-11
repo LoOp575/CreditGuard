@@ -78,6 +78,15 @@ export class PostgresCreditLedger {
       availableMicros: Math.max(0, net), overBudget: net < 0, overspendMicros: Math.max(0, -net) };
   }
 
+  async listReservations(projectId: string, status?: "RESERVED" | "SETTLED" | "RELEASED"): Promise<CreditReservation[]> {
+    assertText(projectId, "projectId");
+    const result = await this.pool.query(
+      "SELECT * FROM cg_reservations WHERE project_id = $1 AND ($2::text IS NULL OR status = $2) ORDER BY created_at",
+      [projectId, status ?? null],
+    );
+    return result.rows.map(reservationFrom);
+  }
+
   async preflight(projectId: string, estimatedCostMicros: number): Promise<PreflightResult> {
     assertMicros(estimatedCostMicros, "estimatedCostMicros");
     const status = await this.getStatus(projectId);
