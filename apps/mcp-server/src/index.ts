@@ -119,6 +119,7 @@ server.tool(
     const result = projectEngine instanceof PostgresProjectStore
       ? await projectEngine.verifyEvidence({ projectId, milestoneId, reference, verificationSource })
       : projectEngine.verifyEvidence({ projectId, milestoneId, reference, verificationSource });
+    await loopGuard.record({ projectId, kind: "progress" });
     return { content: [{ type: "text", text: JSON.stringify(result) }] };
   } catch (error) { return toolError(error); } },
 );
@@ -145,8 +146,8 @@ server.tool(
 
 server.tool(
   "guard.loop.record",
-  "Record a request, retry, error, or verified progress event and assess loop risk.",
-  { projectId: z.string().min(1), kind: z.enum(["request", "error", "retry", "progress"]), signature: z.string().optional() },
+  "Record a request, retry, or error event and assess loop risk. Verified milestone evidence records progress automatically.",
+  { projectId: z.string().min(1), kind: z.enum(["request", "error", "retry"]), signature: z.string().optional() },
   async (args) => { try { return { content: [{ type: "text", text: JSON.stringify(await loopGuard.record(args)) }] }; } catch (error) { return toolError(error); } },
 );
 
