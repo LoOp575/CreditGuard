@@ -37,3 +37,20 @@ test("authorization service failure prevents dispatch", async () => {
     async () => { throw new Error("AUTHORITY_UNAVAILABLE"); }, async () => { dispatched = true; }), /AUTHORITY_UNAVAILABLE/);
   assert.equal(dispatched, false);
 });
+
+test("authorization must return the literal boolean true", async () => {
+  let dispatched = false;
+  const result = await executeWithGuard(
+    { projectId: "p1", action: "READ_ONLY", payload: { path: "README.md" } },
+    async () => ({ allowed: "true", reason: "MALFORMED" } as unknown as { allowed: boolean; reason: string }),
+    async () => { dispatched = true; },
+  );
+  assert.equal(result.executed, false);
+  assert.equal(result.reason, "POLICY_DENIED");
+  assert.equal(dispatched, false);
+});
+
+test("fingerprinting rejects undefined and non-JSON payload values", () => {
+  assert.throws(() => createActionScopeFingerprint("FILE_WRITE", { path: undefined }), /FINGERPRINT_UNDEFINED_VALUE/);
+  assert.throws(() => createActionScopeFingerprint("FILE_WRITE", { amount: Number.NaN }), /FINGERPRINT_NON_FINITE_NUMBER/);
+});
