@@ -67,8 +67,9 @@ Never place provider keys, passwords, or other secrets in checkpoint payloads or
 | Tool | Purpose |
 |---|---|
 | `guard.gateway.unresolved` | List Gateway requests whose reservation is still active and billing/settlement needs reconciliation. |
+| `guard.gateway.recover_request` | Recover an interrupted audit record by linking its reservation or safely marking a pre-dispatch orphan. |
 
-The unresolved list contains metadata only, not prompts or credentials. Once a reservation is settled or released, it no longer appears as unresolved.
+The unresolved list contains metadata only, not prompts or credentials. Once a reservation is settled or released, it no longer appears as unresolved. Every Gateway call requires a project-scoped idempotency key; retries with the same key never redispatch the provider.
 
 ## Typical workflow
 
