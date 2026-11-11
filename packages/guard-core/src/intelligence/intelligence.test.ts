@@ -77,7 +77,8 @@ test("an explicit framework in the prompt avoids a redundant stack question", ()
   assert.ok(!result.unknowns.some(item => item.key === "tech_stack"));
 });
 
-\ntest("prompt preparation maps natural Indonesian design language into concise technical requirements", () => {
+
+test("prompt preparation maps natural Indonesian design language into concise technical requirements", () => {
   const result = preparePrompt({
     rawPrompt: "Buat website toko online yang bagus, modern, enak dipandang, tidak kaku, nyaman dibuka di HP, dan menyesuaikan layar. Ada katalog produk, keranjang, checkout, QRIS, transfer bank, dashboard admin untuk produk, harga, stok, dan pesanan.",
     projectMode: "new",
