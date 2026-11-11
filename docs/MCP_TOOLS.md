@@ -169,3 +169,6 @@ The workspace package `@credit-guard/agent-adapter` provides host-side adapters 
 Use `createPostgresActionAuthorizer(pool)` as the adapter authorization callback. It reads `cg_approval_requests` directly and checks approval state, expiry using PostgreSQL time, project, approval class, and exact scope fingerprint. A missing approval or database error never dispatches the protected operation. The terminal action type `TERMINAL_COMMAND` maps to `SECURITY_SENSITIVE` in `guard.action.authorize`.
 
 The terminal adapter does not invoke a shell and accepts only executable profiles registered by the host. The database adapter does not accept Agent-provided SQL; it accepts a trusted migration ID and validates the host-registered SQL checksum. The deployment adapter requires a trusted provider handler. None of these adapters can prevent bypass through unwrapped tools or direct host access. Keep the raw resource handles and credentials outside the Agent, and run the Agent in a least-privilege OS/container sandbox.
+
+
+A host can use `createGuardedAgentRuntime` to construct one PostgreSQL-backed authorizer and wire it into all four adapters in one setup call. Only the returned adapter interfaces should be passed to the Agent; raw filesystem, child-process, database, provider, and deployment handles remain private to the host.
