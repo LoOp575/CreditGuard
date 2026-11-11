@@ -141,7 +141,8 @@ export function preparePrompt(input: PromptPreparationInput): PreparedPrompt {
   if (originalPrompt.length > 20_000) throw new RangeError("rawPrompt exceeds the 20000 character limit");
 
   const category = classify(originalPrompt);
-  const taskType = classifyCodingTask(originalPrompt);\n  const target = inferTarget(originalPrompt);
+  const taskType = classifyCodingTask(originalPrompt);
+  const target = inferTarget(originalPrompt);
   const projectMode = input.projectMode ?? "unknown";
   const techStack = unique(input.techStack ?? []);
   const explicitConstraints = unique(input.constraints ?? []);
@@ -155,6 +156,10 @@ export function preparePrompt(input: PromptPreparationInput): PreparedPrompt {
         "Suggested only: automated tests for success, failure, duplicate, and delayed payment events.",
       ]
     : [];
+
+  const objective = inferObjective(originalPrompt, category);
+  const semanticInterpretations = interpretSemantics(originalPrompt);
+  const optimized = buildOptimizedPrompt(objective, originalPrompt, semanticInterpretations, explicitConstraints);
 
   const executionRules = [
     "Preserve the user's original goal; clarify it, do not silently replace it.",
@@ -192,7 +197,8 @@ export function preparePrompt(input: PromptPreparationInput): PreparedPrompt {
     originalPrompt,
     "",
     `TASK CATEGORY: ${category}`,
-    `CODING TASK TYPE: ${taskType}`,\n    `TARGET: ${target}`,
+    `CODING TASK TYPE: ${taskType}`,
+    `TARGET: ${target}`,
     `PROJECT MODE: ${projectMode}`,
     `TECH STACK: ${techLine}`,
     "",
