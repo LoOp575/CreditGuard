@@ -17,3 +17,16 @@ export function estimateCostMicros(inputCharacters:number,maxOutputTokens:number
 export function actualCostMicros(usage:ProviderUsage,rate:ModelPricing):number{
   return safeMicros(usage.inputTokens*rate.inputUsdPerMillion+usage.outputTokens*rate.outputUsdPerMillion);
 }
+
+export function resolveCheaperFallback(input:{
+  provider:string;requestedModel:string;fallbacks:Record<string,string>;pricing:Record<string,ModelPricing>;
+  inputCharacters:number;maxOutputTokens:number;safetyMultiplier:number;requestedCostMicros:number;availableMicros:number;
+}):{model:string;rate:ModelPricing;costMicros:number}|null{
+  const model=input.fallbacks[`${input.provider}:${input.requestedModel}`];
+  if(!model)return null;
+  const rate=input.pricing[`${input.provider}:${model}`];
+  if(!rate)return null;
+  const estimate=estimateCostMicros(input.inputCharacters,input.maxOutputTokens,rate,input.safetyMultiplier);
+  if(estimate.costMicros>=input.requestedCostMicros||estimate.costMicros>input.availableMicros)return null;
+  return {model,rate,costMicros:estimate.costMicros};
+}
