@@ -262,9 +262,10 @@ server.tool(
     try {
       const result = await databasePool.query(`SELECT request_id,reservation_id,provider,model,status,
         estimated_cost_micros,actual_cost_micros,input_tokens,output_tokens,created_at,updated_at
-        FROM cg_gateway_requests WHERE project_id=$1 AND status IN
+        FROM cg_gateway_requests g JOIN cg_reservations r ON r.id=g.reservation_id
+        WHERE g.project_id=$1 AND g.status IN
         ('STARTED','SUCCESS_USAGE_UNKNOWN','PROVIDER_ERROR_USAGE_UNKNOWN','UNKNOWN','RECONCILIATION_ERROR')
-        ORDER BY created_at DESC`, [projectId]);
+        AND r.status='RESERVED' ORDER BY g.created_at DESC`, [projectId]);
       return { content: [{ type: "text", text: JSON.stringify(result.rows) }] };
     } catch (error) { return toolError(error); }
   },
