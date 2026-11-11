@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 dotenv.config({ path: fileURLToPath(new URL("../../../.env", import.meta.url)) });
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CreditEngine, CreditEngineError, PostgresCreditLedger, ProjectEngine, LoopGuard, DecisionEngine, ContextOptimizer, PostgresProjectStore, PostgresLoopStore, PostgresCheckpointStore, InMemoryCheckpointStore, preparePrompt, analyzeFailure, assessTaskScope, assessQuality } from "@credit-guard/guard-core";
+import { CreditEngine, CreditEngineError, PostgresCreditLedger, ProjectEngine, LoopGuard, DecisionEngine, ContextOptimizer, PostgresProjectStore, PostgresLoopStore, PostgresCheckpointStore, InMemoryCheckpointStore, preparePrompt, analyzeFailure, assessTaskScope, assessQuality, evaluateExecution } from "@credit-guard/guard-core";
 import { Pool } from "pg";
 import { z } from "zod";
 import { verifySecretToken } from "./security.js";
@@ -185,6 +185,58 @@ server.tool(
       const progress = await projectEngine.progress(projectId);
       const loop = await loopGuard.assess(projectId);
       return { content: [{ type: "text", text: JSON.stringify(decisionEngine.decide({ credit, projectState: project.state, progressPercent: progress.percent, progressTracked: progress.total > 0, estimatedCostMicros, loop, checkpointAvailable })) }] };
+    } catch (error) { return toolError(error); }
+  },
+);
+
+server.tool(
+  "guard.orchestrator.evaluate",
+  "Combine prompt understanding, approved-scope checks, quality evidence, project progress, loop risk, and budget policy into one explainable execution recommendation. Advisory only; it does not intercept Agent tools or provider traffic.",
+  {
+    projectId: z.string().min(1),
+    rawPrompt: z.string().min(1).max(20000),
+    projectMode: z.enum(["new", "existing", "unknown"]).optional(),
+    techStack: z.array(z.string().min(1)).optional(),
+    constraints: z.array(z.string().min(1)).optional(),
+    estimatedCostMicros: z.number().int().nonnegative(),
+    approvedRequirementIds: z.array(z.string()),
+    taskRequirementIds: z.array(z.string()),
+    qualityChecks: z.array(z.object({
+      id: z.string().min(1),
+      description: z.string(),
+      required: z.boolean(),
+      passed: z.boolean().nullable(),
+      evidenceRef: z.string().optional(),
+    })),
+    checkpointAvailable: z.boolean().optional(),
+  },
+  async (args) => {
+    try {
+      const [credit, project] = await Promise.all([
+        creditEngine.getStatus(args.projectId),
+        projectEngine.get(args.projectId),
+      ]);
+      const [progress, loop] = await Promise.all([
+        projectEngine.progress(args.projectId),
+        loopGuard.assess(args.projectId),
+      ]);
+      const result = evaluateExecution({
+        rawPrompt: args.rawPrompt,
+        projectMode: args.projectMode,
+        techStack: args.techStack,
+        constraints: args.constraints,
+        credit,
+        projectState: project.state,
+        progressPercent: progress.percent,
+        progressTracked: progress.total > 0,
+        estimatedCostMicros: args.estimatedCostMicros,
+        loop,
+        checkpointAvailable: args.checkpointAvailable,
+        approvedRequirementIds: args.approvedRequirementIds,
+        taskRequirementIds: args.taskRequirementIds,
+        qualityChecks: args.qualityChecks,
+      });
+      return { content: [{ type: "text", text: JSON.stringify({ projectId: args.projectId, ...result }) }] };
     } catch (error) { return toolError(error); }
   },
 );
