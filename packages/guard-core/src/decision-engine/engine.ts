@@ -13,7 +13,7 @@ export class DecisionEngine {
     }
     if (input.projectState === "BLOCKED" || input.projectState === "PAUSED") reasons.push("PROJECT_REQUIRES_INTERVENTION");
     if (input.loop.action === "WARN") reasons.push(input.loop.reason);
-    if (input.progressPercent < 10 && input.credit.spentMicros > 0) reasons.push("LOW_PROGRESS_RELATIVE_TO_SPEND");
+    if (input.progressTracked !== false && input.progressPercent < 10 && input.credit.spentMicros > 0) reasons.push("LOW_PROGRESS_RELATIVE_TO_SPEND");
     if (reasons.length) return { action: "INTERVENE", reasons, estimatedCostMicros: input.estimatedCostMicros, availableMicros: input.credit.availableMicros, shouldCheckpoint: input.checkpointAvailable ?? true };
     if (input.credit.availableMicros - input.estimatedCostMicros < input.credit.budgetMicros * 0.1) {
       return { action: "OPTIMIZE", reasons: ["LOW_REMAINING_BUDGET"], estimatedCostMicros: input.estimatedCostMicros, availableMicros: input.credit.availableMicros, shouldCheckpoint: true };
