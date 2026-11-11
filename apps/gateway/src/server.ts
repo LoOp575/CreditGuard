@@ -66,6 +66,7 @@ export function createGatewayServer(config:GatewayConfig){
       let dispatchRate=rate;
       let estimatedCostMicros=estimateCostMicros(inputCharacters,maxTokens,rate,safetyMultiplier).costMicros;
       let optimizedFrom:string|undefined;
+      let optimizationReason:string|undefined;
       let availableMicros=0;
       const requestId=randomUUID();
       try{
@@ -98,7 +99,7 @@ export function createGatewayServer(config:GatewayConfig){
               recommendation:"Configure an affordable cheaper model in MODEL_FALLBACKS_JSON or reduce context/output tokens."});
           }
           dispatchModel=fallback.model;dispatchRate=fallback.rate;
-          estimatedCostMicros=fallback.costMicros;optimizedFrom=body.model;
+          estimatedCostMicros=fallback.costMicros;optimizedFrom=body.model;optimizationReason=decision.reasons[0];
         }else if(decision.action!=="ALLOW"){
           await pool.query("UPDATE cg_gateway_requests SET status='POLICY_BLOCKED',updated_at=now() WHERE request_id=$1",[requestId]);
           return reply.code(409).send({error:"GUARD_DECISION",requestId,decision});
@@ -156,7 +157,7 @@ export function createGatewayServer(config:GatewayConfig){
       return reply.code(200).send({provider:result.body,creditGuard:{requestId,reservationId:reservation.id,
         estimatedCostMicros,actualCostMicros,actualUsage:result.usage,settled:Boolean(result.usage),
         requestedModel:body.model,actualModel:dispatchModel,optimized:Boolean(optimizedFrom),
-        optimizationReason:optimizedFrom?"LOW_REMAINING_BUDGET":undefined,
+        optimizationReason,
         warning:result.usage?undefined:"Provider usage was not returned; reservation remains held."}});
     }
   );
