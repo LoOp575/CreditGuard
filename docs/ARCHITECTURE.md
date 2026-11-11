@@ -6,7 +6,7 @@ Advisory MCP mode:
 
 `Agent -> Credit Guard MCP tools -> recommendation -> Agent`
 
-Enforced Gateway mode (later phase):
+Enforced Gateway mode (planned next phase):
 
 `Agent -> Credit Guard Gateway -> policy + atomic reservation -> provider adapter -> AI provider`
 
@@ -26,13 +26,13 @@ MCP is a protocol interface, not a network firewall. An agent that retains direc
 
 CREATED, PLANNING, EXECUTING, VERIFYING, COMPLETED, PAUSED, BLOCKED, FAILED.
 
-Progress must be supported by observable evidence such as test results, file changes, generated artifacts, or completed milestones. An agent's self-reported percentage is not sufficient evidence by itself.
+Progress must be supported by observable evidence such as test results, file changes, generated artifacts, or completed milestones. Evidence is recorded as unverified first. A trusted operator or integration must verify it before a milestone completes. The current MCP verification tool trusts its caller and does not independently inspect artifacts.
 
-## Credit Engine implementation status
+## Persistence implementation status
 
-Money is represented as integer USD micros (1 USD = 1,000,000 micros). `CreditEngine` remains the in-memory reference adapter for unit tests. `PostgresCreditLedger` is the durable adapter: it stores projects and reservations in PostgreSQL, locks the project row during reservation, enforces a unique `(project_id, idempotency_key)` constraint, and commits settlement and reservation state changes in one transaction. The MCP server selects PostgreSQL when `DATABASE_URL` is set and verifies that the migration tables exist at startup; otherwise it reports the in-memory development mode.
+Money is represented as integer USD micros (1 USD = 1,000,000 micros). `PostgresCreditLedger` stores budgets and reservations transactionally, locks the project row during reservation, and enforces unique `(project_id, idempotency_key)` keys. `PostgresProjectStore` persists project lifecycle, milestones, and evidence. `PostgresLoopStore` persists retry/error/progress events. `PostgresCheckpointStore` saves versioned resume payloads. The MCP server selects these PostgreSQL adapters when `DATABASE_URL` is configured and verifies both migrations at startup. Without a database URL, it uses explicitly reported in-memory development adapters.
 
-The adapter is an initial implementation, not yet production-validated. Integration tests against PostgreSQL, concurrent multi-process tests, crash-recovery tests, and security review remain required. Redis is not the authoritative credit ledger.
+CI applies both migrations to PostgreSQL 16 and runs integration tests for concurrent reservation, settlement, project evidence, loop detection, and checkpoint retrieval. This automated coverage does not replace production load testing, crash/failover testing, threat modeling, or security review. Redis is not the authoritative credit ledger.
 
 ## Budget safety
 
