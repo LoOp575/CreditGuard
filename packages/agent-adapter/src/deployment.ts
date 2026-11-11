@@ -31,8 +31,8 @@ export class GuardedDeploymentAdapter {
   }
 
   async deploy(target: string, artifactRef: string, approvalId?: string): Promise<DeploymentResult> {
+    if (!Object.hasOwn(this.options.targets, target)) throw new Error("DEPLOYMENT_TARGET_NOT_ALLOWED");
     const handler = this.options.targets[target];
-    if (!handler) throw new Error("DEPLOYMENT_TARGET_NOT_ALLOWED");
     if (!artifactRef.trim() || artifactRef.length > 2048) throw new Error("INVALID_ARTIFACT_REFERENCE");
     const payload = { target, artifactRef };
     const result = await executeWithGuard(
