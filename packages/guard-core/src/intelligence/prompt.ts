@@ -13,7 +13,7 @@ function classify(prompt: string): TaskCategory {
   return "general";
 }
 
-function buildQuestions(category: TaskCategory, projectMode: PromptPreparationInput["projectMode"], techStack: string[]): ClarificationItem[] {
+function buildQuestions(category: TaskCategory, projectMode: PromptPreparationInput["projectMode"], techStack: string[], promptForQuestions: string): ClarificationItem[] {
   const questions: ClarificationItem[] = [];
   if (projectMode !== "new" && projectMode !== "existing") {
     questions.push({ key: "project_mode", question: "Apakah ini proyek baru atau melanjutkan proyek yang sudah ada?", importance: "critical" });
@@ -21,7 +21,7 @@ function buildQuestions(category: TaskCategory, projectMode: PromptPreparationIn
   if (!techStack.length && category === "software_project") {
     questions.push({ key: "tech_stack", question: "Apakah ada framework atau bahasa pemrograman yang wajib digunakan?", importance: "useful" });
   }
-  if (category === "software_project" && /payment|pembayaran|checkout|transaksi/i.test(category === "software_project" ? "payment" : "")) {
+  if (category === "software_project" && /payment|pembayaran|checkout|transaksi/i.test(promptForQuestions)) {
     questions.push({ key: "payment_provider", question: "Payment gateway atau penyedia pembayaran apa yang akan digunakan?", importance: "critical" });
   }
   return questions;
@@ -53,7 +53,7 @@ export function preparePrompt(input: PromptPreparationInput): PreparedPrompt {
   const projectMode = input.projectMode ?? "unknown";
   const techStack = unique(input.techStack ?? []);
   const explicitConstraints = unique(input.constraints ?? []);
-  const unknowns = buildQuestions(category, projectMode, techStack);
+  const unknowns = buildQuestions(category, projectMode, techStack, originalPrompt);
   const tasks = buildTasks(category);
   const suggestedRequirements = category === "software_project" && /payment|pembayaran|checkout|transaksi/i.test(originalPrompt)
     ? [
