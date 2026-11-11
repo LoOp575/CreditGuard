@@ -9,6 +9,7 @@ const databaseUrl=process.env.DATABASE_URL;
 const projectTokens:Record<string,string>=JSON.parse(process.env.GATEWAY_PROJECT_TOKENS_JSON??"{}");
 const providerKeys:Record<string,string>=JSON.parse(process.env.PROVIDER_API_KEYS_JSON??"{}");
 const pricing:Record<string,{inputUsdPerMillion:number;outputUsdPerMillion:number}>=JSON.parse(process.env.PROVIDER_PRICING_JSON??"{}");
+const modelFallbacks:Record<string,string>=JSON.parse(process.env.MODEL_FALLBACKS_JSON??"{}");
 const safetyMultiplier=Number(process.env.ESTIMATE_SAFETY_MULTIPLIER??"1.5");
 if(!databaseUrl)throw new Error("DATABASE_URL is required for enforced Gateway mode");
 if(!Object.keys(projectTokens).length||Object.values(projectTokens).some(token=>typeof token!=="string"||token.length<24))
@@ -50,18 +51,36 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
     if(!rate||!Number.isFinite(rate.inputUsdPerMillion)||!Number.isFinite(rate.outputUsdPerMillion)||rate.inputUsdPerMillion<0||rate.outputUsdPerMillion<0)
       return reply.code(503).send({error:"PRICING_NOT_CONFIGURED",model:body.model,provider});
     // Conservative character-based estimate. Provider-reported usage is authoritative after completion.
-    const estimate=estimateCostMicros(JSON.stringify(body.messages).length,maxTokens,rate,safetyMultiplier);
-    const estimatedInputTokens=estimate.inputTokens;
-    const estimatedCostMicros=estimate.costMicros;
+    const inputCharacters=JSON.stringify(body.messages).length;
+    let dispatchModel=body.model;
+    let dispatchRate=rate;
+    let estimate=estimateCostMicros(inputCharacters,maxTokens,rate,safetyMultiplier);
+    let estimatedCostMicros=estimate.costMicros;
+    let optimizedFrom:string|undefined;
+    let availableMicros=0;
     let loopAssessment;
     try{
       loopAssessment=await loopStore.record({projectId,kind:"request"});
       const [credit,project,progress]=await Promise.all([
         ledger.getStatus(projectId),projectStore.get(projectId),projectStore.progress(projectId)
       ]);
+      availableMicros=credit.availableMicros;
       const decision=decisionEngine.decide({credit,projectState:project.state,progressPercent:progress.percent,progressTracked:progress.total>0,
         estimatedCostMicros,loop:loopAssessment,checkpointAvailable:true});
-      if(decision.action!=="ALLOW")return reply.code(409).send({error:"GUARD_DECISION",decision});
+      if(decision.action==="OPTIMIZE"){
+        const fallbackModel=modelFallbacks[`${provider}:${body.model}`];
+        const fallbackRate=fallbackModel?pricing[`${provider}:${fallbackModel}`]:undefined;
+        if(!fallbackModel||!fallbackRate)return reply.code(409).send({error:"GUARD_OPTIMIZATION_REQUIRED",decision,
+          recommendation:"Configure a cheaper model in MODEL_FALLBACKS_JSON or reduce context/output tokens."});
+        const fallbackEstimate=estimateCostMicros(inputCharacters,maxTokens,fallbackRate,safetyMultiplier);
+        if(fallbackEstimate.costMicros>=estimatedCostMicros||fallbackEstimate.costMicros>availableMicros)
+          return reply.code(409).send({error:"NO_AFFORDABLE_FALLBACK",decision,requestedModel:body.model,fallbackModel,
+            fallbackEstimatedCostMicros:fallbackEstimate.costMicros,availableMicros});
+        dispatchModel=fallbackModel;dispatchRate=fallbackRate;estimate=fallbackEstimate;
+        estimatedCostMicros=fallbackEstimate.costMicros;optimizedFrom=body.model;
+      }else if(decision.action!=="ALLOW"){
+        return reply.code(409).send({error:"GUARD_DECISION",decision});
+      }
     }catch(error){
       return reply.code(404).send({error:"PROJECT_OR_BUDGET_NOT_CONFIGURED",message:error instanceof Error?error.message:"Project state unavailable"});
     }
@@ -72,14 +91,14 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
     const requestId=randomUUID();
     try{
       await pool.query("INSERT INTO cg_gateway_requests(request_id,project_id,reservation_id,provider,model,status,estimated_cost_micros) VALUES($1,$2,$3,$4,$5,'STARTED',$6)",
-        [requestId,projectId,reservation.id,provider,body.model,String(estimatedCostMicros)]);
+        [requestId,projectId,reservation.id,provider,dispatchModel,String(estimatedCostMicros)]);
     }catch{
       await ledger.release(reservation.id);
       return reply.code(503).send({error:"AUDIT_WRITE_FAILED",warning:"Provider request was not dispatched; reservation released."});
     }
     let result: ProviderResult;
     try{
-      result=await adapters[provider].send({model:body.model,messages:body.messages,maxTokens,temperature:body.temperature},apiKey);
+      result=await adapters[provider].send({model:dispatchModel,messages:body.messages,maxTokens,temperature:body.temperature},apiKey);
     }catch{
       await pool.query("UPDATE cg_gateway_requests SET status='UNKNOWN',updated_at=now() WHERE request_id=$1",[requestId]);
       try{await loopStore.record({projectId,kind:"error",signature:"UPSTREAM_TRANSPORT"});}catch{}
@@ -88,7 +107,7 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
     }
     let actualCostMicros:number|null=null;
     if(result.usage){
-      actualCostMicros=calculateActualCostMicros(result.usage,rate);
+      actualCostMicros=calculateActualCostMicros(result.usage,dispatchRate);
       try{await ledger.settle(reservation.id,actualCostMicros);}
       catch{
         try{await loopStore.record({projectId,kind:"error",signature:"LEDGER_RECONCILIATION"});}catch{}
@@ -109,7 +128,7 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
         warning:result.usage?"Provider usage was reconciled.":"Usage is unknown; reservation remains held for manual reconciliation."});
     }
     return reply.code(200).send({provider:result.body,creditGuard:{requestId,reservationId:reservation.id,
-      estimatedCostMicros,actualCostMicros,actualUsage:result.usage,settled:Boolean(result.usage),
+      estimatedCostMicros,actualCostMicros,actualUsage:result.usage,settled:Boolean(result.usage),requestedModel:body.model,actualModel:dispatchModel,optimized:Boolean(optimizedFrom),optimizationReason:optimizedFrom?"LOW_REMAINING_BUDGET":undefined,
       warning:result.usage?undefined:"Provider usage was not returned; reservation remains held."}});
   }
 );
