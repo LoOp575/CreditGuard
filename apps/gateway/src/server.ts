@@ -7,17 +7,25 @@ import { estimateCostMicros, actualCostMicros as calculateActualCostMicros, reso
 
 export interface GatewayConfig {
   pool: Pool;
-  projectTokens: Record<string,string>;
+  projectTokens: Record<string,string|string[]>;
   providerKeys: Record<string,string>;
   pricing: Record<string,ModelPricing>;
   modelFallbacks: Record<string,string>;
   safetyMultiplier: number;
   adapters?: Record<ProviderName,ProviderAdapter>;
 }
-function constantTimeTokenMatch(received:string|string[]|undefined,expected:string):boolean{
+export function constantTimeTokenMatch(received:string|string[]|undefined,expected:string|string[]):boolean{
   if(typeof received!=="string")return false;
-  const a=Buffer.from(received);const b=Buffer.from(expected);
-  return a.length===b.length&&timingSafeEqual(a,b);
+  const candidates=Array.isArray(expected)?expected:[expected];
+  const receivedBytes=Buffer.from(received);
+  let matched=false;
+  for(const candidate of candidates){
+    const expectedBytes=Buffer.from(candidate);
+    const equalLength=receivedBytes.length===expectedBytes.length;
+    const candidateMatch=equalLength&&timingSafeEqual(receivedBytes,expectedBytes);
+    matched=matched||candidateMatch;
+  }
+  return matched;
 }
 export function createGatewayServer(config:GatewayConfig){
   const {pool,projectTokens,providerKeys,pricing,modelFallbacks,safetyMultiplier}=config;
