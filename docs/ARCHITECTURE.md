@@ -92,3 +92,10 @@ The canonical intent fields remain language-independent. Provider-specific token
 ## Model-specific token measurement
 
 The intelligence package provides a `TokenizerAdapter` contract and `measurePromptCompression` utility. Integrators must supply the exact tokenizer for the destination model/version. The utility reports original and optimized token counts, absolute savings, and percentage savings. It intentionally does not ship a generic word-to-token estimate and does not claim a provider's billed usage before the provider reports it. If no matching tokenizer adapter is available, report token savings as unmeasured rather than inventing a number.
+
+
+## Trusted action adapter
+
+The guard-core package exports `executeWithGuard` and `createActionScopeFingerprint`. A trusted tool handler wraps its real dispatch function with this adapter. It computes a SHA-256 fingerprint from the action class and canonicalized payload, asks a trusted authorization callback, and invokes the handler only when the callback returns `allowed: true`.
+
+The authorization callback must read approval state from a trusted server-side source. Never trust an Agent-supplied authorization boolean or fingerprint. Compute the fingerprint immediately before dispatch from the exact payload that will be executed. Keep the dispatch function private and do not expose an alternate unguarded route. If the authorization service errors or is unavailable, execution stops. This is a reusable reference adapter, not a global OS sandbox: it cannot intercept arbitrary third-party tools, direct shell access, or provider calls that bypass the Gateway. Every integration must wrap all relevant execution paths.
