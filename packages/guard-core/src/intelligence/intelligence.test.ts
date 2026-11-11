@@ -128,3 +128,31 @@ test("universal intent schema supports modifying an existing feature", () => {
   assert.ok(result.intent.expectedOutput.length > 0);
   assert.ok(result.intent.verification.length > 0);
 });
+test("language detection identifies Indonesian and English input", () => {
+  const indonesian = preparePrompt({ rawPrompt: "Tolong perbaiki bug login yang gagal di aplikasi saya" });
+  const english = preparePrompt({ rawPrompt: "Please fix the login bug in my application" });
+  assert.equal(indonesian.language.code, "id");
+  assert.equal(english.language.code, "en");
+});
+
+test("language detection identifies Spanish and Japanese scripts conservatively", () => {
+  const spanish = preparePrompt({ rawPrompt: "Por favor crear una aplicación para mi sitio" });
+  const japanese = preparePrompt({ rawPrompt: "アプリのバグを修正してください" });
+  assert.equal(spanish.language.code, "es");
+  assert.equal(japanese.language.code, "ja");
+  assert.equal(japanese.requiresSemanticReview, true);
+});
+
+test("multilingual task keywords classify common software requests", () => {
+  const spanish = preparePrompt({ rawPrompt: "Por favor arreglar el bug de mi aplicación" });
+  const french = preparePrompt({ rawPrompt: "Créer une application mobile" });
+  assert.equal(spanish.intent.taskType, "debug");
+  assert.equal(french.intent.taskType, "build");
+});
+
+test("English design language maps to canonical technical requirements", () => {
+  const result = preparePrompt({ rawPrompt: "Build a modern website that is mobile-friendly and easy on the eyes", projectMode: "new" });
+  assert.equal(result.language.code, "en");
+  assert.ok(result.semanticInterpretations.some(item => item.interpretation === "Modern UI design"));
+  assert.ok(result.semanticInterpretations.some(item => item.interpretation === "Mobile-friendly user experience"));
+});
