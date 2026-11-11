@@ -100,8 +100,8 @@ export function registerApprovalTools(server: McpServer, pool?: Pool) {
 
   server.tool("guard.approval.check",
     "Fail-closed check before executing a protected action. Approval is valid only for the exact scope fingerprint and an unexpired APPROVED request.",
-    { approvalId:z.string().uuid(), projectId:z.string().min(1), scopeFingerprint:z.string().min(8).max(256) },
-    async ({approvalId,projectId,scopeFingerprint}) => {
+    { approvalId:z.string().uuid(), projectId:z.string().min(1), action:actionSchema, scopeFingerprint:z.string().min(8).max(256) },
+    async ({approvalId,projectId,action,scopeFingerprint}) => {
       const record=await get(approvalId);
       if(!record) return {content:[{type:"text",text:JSON.stringify({allowed:false,reason:"NOT_FOUND"})}]};
       if(record.status==="PENDING" && Date.now()>=Date.parse(record.expiresAt)) {
@@ -109,7 +109,40 @@ export function registerApprovalTools(server: McpServer, pool?: Pool) {
         else record.status="EXPIRED";
         record.status="EXPIRED";
       }
-      const allowed=record.status==="APPROVED" && record.projectId===projectId && record.scopeFingerprint===scopeFingerprint;
-      return {content:[{type:"text",text:JSON.stringify({allowed,reason:allowed?"APPROVED":record.status!=="APPROVED"?record.status:"SCOPE_MISMATCH"})}]};
+      const allowed=record.status==="APPROVED" && record.projectId===projectId && record.action===action && record.scopeFingerprint===scopeFingerprint;
+      const reason=allowed?"APPROVED":record.status!=="APPROVED"?record.status:record.projectId!==projectId?"PROJECT_MISMATCH":record.action!==action?"ACTION_MISMATCH":"SCOPE_MISMATCH";
+      return {content:[{type:"text",text:JSON.stringify({allowed,reason})}]};
     });
+
+  // Single preflight contract for Agent tool adapters. This does not intercept
+  // third-party tools by itself; adapters must call it before dispatch.
+  const actionPolicy = z.enum(["READ_ONLY","MODEL_REQUEST","FILE_WRITE","FILE_DELETE","DEPLOY","DATABASE_MIGRATION","SCOPE_CHANGE","ARCHITECTURE_CHANGE","SECURITY_CHANGE"]);
+  const requiredApproval: Record<z.infer<typeof actionPolicy>, ApprovalAction | null> = {
+    READ_ONLY:null, MODEL_REQUEST:null, FILE_WRITE:null,
+    FILE_DELETE:"DESTRUCTIVE_ACTION", DEPLOY:"PRODUCTION_CHANGE",
+    DATABASE_MIGRATION:"PRODUCTION_CHANGE", SCOPE_CHANGE:"SCOPE_CHANGE",
+    ARCHITECTURE_CHANGE:"ARCHITECTURE_CHANGE", SECURITY_CHANGE:"SECURITY_SENSITIVE",
+  };
+  server.tool("guard.action.authorize",
+    "Preflight authorization contract for an Agent tool adapter. Non-protected actions pass; protected actions require an unexpired approval bound to the same project, action class, and exact scope fingerprint. The adapter must stop dispatch when allowed is false.",
+    { projectId:z.string().min(1), action:actionPolicy, scopeFingerprint:z.string().min(8).max(256), approvalId:z.string().uuid().optional() },
+    async ({projectId,action,scopeFingerprint,approvalId}) => {
+      const required=requiredApproval[action];
+      if(!required) return {content:[{type:"text",text:JSON.stringify({allowed:true,reason:"NO_APPROVAL_REQUIRED",action,projectId,scopeFingerprint})}]};
+      if(!approvalId) return {content:[{type:"text",text:JSON.stringify({allowed:false,reason:"APPROVAL_REQUIRED",requiredApproval:required})}]};
+      const record=await get(approvalId);
+      if(!record) return {content:[{type:"text",text:JSON.stringify({allowed:false,reason:"APPROVAL_NOT_FOUND",requiredApproval:required})}]};
+      if(record.status==="PENDING" && Date.now()>=Date.parse(record.expiresAt)) {
+        if(pool) await pool.query("UPDATE cg_approval_requests SET status='EXPIRED' WHERE approval_id=$1 AND status='PENDING'",[approvalId]);
+        else record.status="EXPIRED";
+        record.status="EXPIRED";
+      }
+      const allowed=record.status==="APPROVED" && record.projectId===projectId &&
+        record.action===required && record.scopeFingerprint===scopeFingerprint;
+      const reason=allowed?"APPROVED":record.status!=="APPROVED"?record.status:
+        record.projectId!==projectId?"PROJECT_MISMATCH":
+        record.action!==required?"ACTION_MISMATCH":"SCOPE_MISMATCH";
+      return {content:[{type:"text",text:JSON.stringify({allowed,reason,requiredApproval:required,approvalId})}]};
+    });
+
 }
