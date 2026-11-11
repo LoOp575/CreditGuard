@@ -5,7 +5,7 @@
 - [x] MCP stdio server skeleton
 - [x] Health tool
 - [x] Caller-rate-based cost estimate tool
-- [ ] Local install and protocol smoke test
+- [x] CI protocol smoke test: initialize + tools/list over stdio
 
 ## Phase 2: Credit Engine
 - [x] Project budget model (in-memory reference implementation)
@@ -42,7 +42,7 @@
 - [x] Provider keys isolated to Gateway-side secret configuration
 - [x] PostgreSQL request outcome audit without prompt/key storage
 - [x] Reservation recovery and unresolved Gateway request tools
-- [ ] Automated end-to-end provider tests with mocked upstreams
+- [x] Gateway end-to-end integration test with mocked provider and PostgreSQL
 - [ ] Key rotation workflow and production secret-manager deployment
 
 ## Phase 6: Validation
