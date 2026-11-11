@@ -49,6 +49,8 @@ The Gateway runs Decision Engine and Loop Guard preflight before reserving credi
 
 The response contains the provider-native response under `provider` plus a `creditGuard` reconciliation summary. This is a provider-neutral request envelope, not a byte-for-byte OpenAI response proxy.
 
+Current adapter scope is text-only chat messages with string content. Streaming, tool/function calls, multimodal inputs, and provider-specific advanced parameters are not implemented in this MVP.
+
 ## Important limits
 
 The input-token estimate uses a conservative character heuristic and a configurable buffer. Actual provider usage is authoritative after the call. If the provider omits usage or a network failure makes billing uncertain, the reservation remains held and the audit record is marked for manual reconciliation. Do not release it until provider billing status is known.
