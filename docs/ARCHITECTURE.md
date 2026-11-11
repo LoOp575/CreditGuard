@@ -111,3 +111,6 @@ The `@credit-guard/agent-adapter` workspace package provides filesystem, termina
 - Deployment: accepts only host-registered target handlers and requires production approval for the exact target/artifact reference.
 
 These are privileged tool adapters, not a universal sandbox. Every path to the underlying resource must be routed through the adapter. Use least-privilege OS/container isolation and keep database connections, deployment credentials, provider keys, and approval authority outside Agent context. The generic deployment adapter requires a real provider-specific handler to be registered by the host.
+
+
+A host can use `createGuardedAgentRuntime` to construct one PostgreSQL-backed authorizer and wire it into all four adapters in one setup call. Only the returned adapter interfaces should be passed to the Agent; raw filesystem, child-process, database, provider, and deployment handles remain private to the host.
