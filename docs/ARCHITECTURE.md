@@ -87,3 +87,8 @@ The intent schema is independent of programming language and framework. Target d
 The first multilingual layer detects Indonesian, English, Spanish, Portuguese, French, German, Japanese, and Chinese scripts using deterministic keyword/script heuristics. It adds a language signal to the prepared prompt and expands a bounded set of task and design phrases. This is not machine translation or broad multilingual semantic understanding. If the language is unsupported or the request cannot be safely represented by known rules, `requiresSemanticReview` remains true and the original prompt must be retained. Script detection alone does not imply that the request has been understood.
 
 The canonical intent fields remain language-independent. Provider-specific token counting is deliberately separate: exact token counts require the destination model's tokenizer or authoritative provider usage data. Character counts and generic token-per-word ratios must not be reported as exact savings.
+
+
+## Model-specific token measurement
+
+The intelligence package provides a `TokenizerAdapter` contract and `measurePromptCompression` utility. Integrators must supply the exact tokenizer for the destination model/version. The utility reports original and optimized token counts, absolute savings, and percentage savings. It intentionally does not ship a generic word-to-token estimate and does not claim a provider's billed usage before the provider reports it. If no matching tokenizer adapter is available, report token savings as unmeasured rather than inventing a number.
