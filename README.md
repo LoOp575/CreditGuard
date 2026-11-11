@@ -48,9 +48,9 @@ docs/               Architecture, security, roadmap
 
 ## Development status
 
-The repository now includes PostgreSQL-backed credit, project, loop, and checkpoint components; explainable decisions; and a deterministic context optimizer. CI applies both migrations to PostgreSQL 16 and runs integration tests for concurrent reservations, settlement, evidence verification, loop detection, and checkpoint retrieval.
+The repository now includes PostgreSQL-backed credit, project, loop, and checkpoint components; explainable decisions; a deterministic context optimizer; and a Fastify Gateway with OpenAI, Anthropic, and Google adapters. The Gateway keeps provider keys on the server, uses project-scoped tokens, reserves credit before dispatch, and records usage/outcome metadata without storing prompts or secrets. CI applies the PostgreSQL migrations and runs core integration tests.
 
-**Important limitation:** the MCP interface remains advisory-only. It cannot stop an Agent from calling a provider directly. Evidence verification trusts the caller's verification step and is not a cryptographic artifact verifier. In-memory mode is development-only and loses state on restart. Provider Gateway enforcement, representative-agent tests, load/failover testing, and security review remain before production claims.
+**Important limitation:** the MCP interface remains advisory-only. It cannot stop an Agent from calling a provider directly. Evidence verification trusts the caller's verification step and is not a cryptographic artifact verifier. In-memory mode is development-only and loses state on restart. Gateway deployment still requires operator-supplied project tokens, provider keys, and verified model pricing. Its token estimate is heuristic, and actual provider charges can exceed estimates. Representative-agent tests, load/failover testing, credential rotation, and security review remain before production claims.
 
 ## Local setup
 
