@@ -17,21 +17,24 @@ const server = new McpServer({
 
 const databaseUrl = process.env.DATABASE_URL;
 let creditEngine: CreditEngine | PostgresCreditLedger;
+let databasePool: Pool | undefined;
 let ledgerMode: string;
 let stateMode: string;
 
 if (databaseUrl) {
   const pool = new Pool({ connectionString: databaseUrl, max: 10 });
+  databasePool = pool;
   const schemaCheck = await pool.query(`SELECT
     to_regclass('public.cg_projects') AS credit_projects,
     to_regclass('public.cg_reservations') AS credit_reservations,
     to_regclass('public.cg_guard_projects') AS guard_projects,
     to_regclass('public.cg_loop_events') AS loop_events,
-    to_regclass('public.cg_checkpoints') AS checkpoints`);
+    to_regclass('public.cg_checkpoints') AS checkpoints,
+    to_regclass('public.cg_gateway_requests') AS gateway_requests`);
   const s = schemaCheck.rows[0];
-  if (!s?.credit_projects || !s?.credit_reservations || !s?.guard_projects || !s?.loop_events || !s?.checkpoints) {
+  if (!s?.credit_projects || !s?.credit_reservations || !s?.guard_projects || !s?.loop_events || !s?.checkpoints || !s?.gateway_requests) {
     await pool.end();
-    throw new Error("Credit Guard PostgreSQL schema is incomplete. Apply migrations 001_credit_ledger.sql and 002_project_loop_checkpoint.sql.");
+    throw new Error("Credit Guard PostgreSQL schema is incomplete. Apply migrations 001_credit_ledger.sql, 002_project_loop_checkpoint.sql, and 003_gateway_audit.sql.");
   }
   creditEngine = new PostgresCreditLedger(pool);
   projectEngine = new PostgresProjectStore(pool);
@@ -237,6 +240,33 @@ server.tool(
     } catch (error) {
       return toolError(error);
     }
+  },
+);
+
+server.tool(
+  "guard.credit.list_reservations",
+  "List a project's reservations so uncertain or abandoned requests can be reconciled safely.",
+  { projectId: z.string().min(1), status: z.enum(["RESERVED", "SETTLED", "RELEASED"]).optional() },
+  async ({ projectId, status }) => {
+    try { return { content: [{ type: "text", text: JSON.stringify(await creditEngine.listReservations(projectId, status)) }] }; }
+    catch (error) { return toolError(error); }
+  },
+);
+
+server.tool(
+  "guard.gateway.unresolved",
+  "List Gateway requests whose provider billing or ledger settlement needs reconciliation. Does not expose prompts or credentials.",
+  { projectId: z.string().min(1) },
+  async ({ projectId }) => {
+    if (!databasePool) return toolError(new Error("Gateway audit requires DATABASE_URL and PostgreSQL mode"));
+    try {
+      const result = await databasePool.query(`SELECT request_id,reservation_id,provider,model,status,
+        estimated_cost_micros,actual_cost_micros,input_tokens,output_tokens,created_at,updated_at
+        FROM cg_gateway_requests WHERE project_id=$1 AND status IN
+        ('STARTED','SUCCESS_USAGE_UNKNOWN','PROVIDER_ERROR_USAGE_UNKNOWN','UNKNOWN','RECONCILIATION_ERROR')
+        ORDER BY created_at DESC`, [projectId]);
+      return { content: [{ type: "text", text: JSON.stringify(result.rows) }] };
+    } catch (error) { return toolError(error); }
   },
 );
 
