@@ -9,7 +9,8 @@
     "./terminal": "./dist/terminal.js",
     "./database": "./dist/database.js",
     "./deployment": "./dist/deployment.js",
-    "./postgres-authorizer": "./dist/postgres-authorizer.js"
+    "./postgres-authorizer": "./dist/postgres-authorizer.js",
+    "./runtime": "./dist/runtime.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
