@@ -23,7 +23,7 @@ export function detectLanguage(input: string): LanguageDetection {
 
   const scores = Object.entries(KEYWORDS).map(([code, words]) => ({
     code: code as Exclude<SupportedLanguage, "unknown" | "ja" | "zh">,
-    score: words.reduce((sum, word) => sum + (new RegExp(`(^|[^\\p{L}])${word.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}([^\\p{L}]|$)`, "iu").test(text) ? 1 : 0), 0),
+    score: words.reduce((sum, word) => sum + (new RegExp(`(^|[^\\p{L}])${word}([^\\p{L}]|$)`, "iu").test(text) ? 1 : 0), 0),
   })).sort((a, b) => b.score - a.score);
 
   const best = scores[0];
