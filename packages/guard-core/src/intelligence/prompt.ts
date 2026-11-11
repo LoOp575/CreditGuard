@@ -33,6 +33,7 @@ type SemanticRule = { pattern: RegExp; userPhrase: string; interpretation: strin
 const SEMANTIC_RULES: SemanticRule[] = [
   { pattern: /\bbagus\b|\bindah\b|\bkeren\b/i, userPhrase: "Bagus / indah / keren", interpretation: "High-quality visual design", category: "design", requiresDesignContext: true },
   { pattern: /\bmodern\b/i, userPhrase: "Modern", interpretation: "Modern UI design", category: "design", requiresDesignContext: true },
+  { pattern: /sederhana|tidak ramai|minimalis|tidak ribet/i, userPhrase: "Sederhana / tidak ramai", interpretation: "Simple, uncluttered UI with clear information hierarchy", category: "design", requiresDesignContext: true },
   { pattern: /enak dipandang|nyaman dilihat|tidak menyakitkan mata/i, userPhrase: "Enak dipandang", interpretation: "Clear visual hierarchy, balanced spacing, and consistent visual styling", category: "design", requiresDesignContext: true },
   { pattern: /tidak kaku|nggak kaku|gak kaku|lebih hidup/i, userPhrase: "Tidak kaku", interpretation: "Dynamic layout and natural interactions", category: "usability", requiresDesignContext: true },
   { pattern: /nyaman dibuka di (hp|ponsel|mobile)|mudah digunakan di (hp|ponsel)/i, userPhrase: "Nyaman dibuka di HP", interpretation: "Mobile-friendly user experience", category: "usability" },
@@ -72,6 +73,7 @@ function buildOptimizedPrompt(objective: string, prompt: string, interpretations
   add(/pesanan|order/.test(value), "Order management");
   add(/harga/.test(value), "Price management");
   add(/produk/.test(value) && /admin|kelola|mengatur/.test(value), "Product management");
+  add(/pembayaran|payment|transaksi/.test(value) && /admin|kelola|mengatur|monitor|pantau/.test(value), "Payment management");
   requirements.push(...interpretations.map(item => item.interpretation));
   requirements.push(...explicitConstraints);
   const uniqueRequirements = [...new Set(requirements)];
