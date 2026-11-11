@@ -9,18 +9,18 @@ test("MCP server completes initialize and exposes expected tools",async()=>{
     env:{...process.env,DATABASE_URL:""},
     stdio:["pipe","pipe","pipe"]
   });
-  const lines=createInterface({input:child.stdout});
+  const lines=createInterface({input:child.stdout!});
   const iterator=lines[Symbol.asyncIterator]();
   const next=async()=>{
-    let timer: ReturnType<typeof setTimeout>;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout=new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error("MCP response timed out")),10000);});
     const item=await Promise.race([iterator.next(),timeout]);
-    clearTimeout(timer!);
+    if(timer)clearTimeout(timer);
     if(item.done)throw new Error("MCP server closed stdout unexpectedly");
     return JSON.parse(item.value);
   };
   try{
-    child.stdin.write(JSON.stringify({jsonrpc:"2.0",id:1,method:"initialize",params:{
+    child.stdin!.write(JSON.stringify({jsonrpc:"2.0",id:1,method:"initialize",params:{
       protocolVersion:"2024-11-05",capabilities:{},clientInfo:{name:"credit-guard-smoke",version:"0.1.0"}
     }})+"\n");
     const initialized=await next();
