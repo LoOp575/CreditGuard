@@ -156,3 +156,24 @@ test("English design language maps to canonical technical requirements", () => {
   assert.ok(result.semanticInterpretations.some(item => item.interpretation === "Modern UI design"));
   assert.ok(result.semanticInterpretations.some(item => item.interpretation === "Mobile-friendly user experience"));
 });
+
+test("token compression measurement uses the supplied model tokenizer", async () => {
+  const { measurePromptCompression } = await import("./tokenizer.js");
+  const result = await measurePromptCompression("original prompt", "short prompt", {
+    id: "test-model-tokenizer-v1",
+    countTokens: (value) => value === "original prompt" ? 100 : 25,
+  });
+  assert.equal(result.tokenizerId, "test-model-tokenizer-v1");
+  assert.equal(result.originalTokens, 100);
+  assert.equal(result.optimizedTokens, 25);
+  assert.equal(result.savedTokens, 75);
+  assert.equal(result.savingsPercent, 75);
+});
+
+test("token compression measurement rejects invalid tokenizer counts", async () => {
+  const { measurePromptCompression } = await import("./tokenizer.js");
+  await assert.rejects(
+    () => measurePromptCompression("original", "optimized", { id: "bad", countTokens: () => -1 }),
+    /invalid original token count/,
+  );
+});
