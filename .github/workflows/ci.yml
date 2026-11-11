@@ -38,6 +38,7 @@ jobs:
         run: |
           PGPASSWORD=postgres psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f database/migrations/001_credit_ledger.sql
           PGPASSWORD=postgres psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f database/migrations/002_project_loop_checkpoint.sql
+          PGPASSWORD=postgres psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f database/migrations/003_gateway_audit.sql
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
