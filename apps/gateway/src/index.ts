@@ -59,7 +59,7 @@ app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_to
       const [credit,project,progress]=await Promise.all([
         ledger.getStatus(projectId),projectStore.get(projectId),projectStore.progress(projectId)
       ]);
-      const decision=decisionEngine.decide({credit,projectState:project.state,progressPercent:progress.percent,
+      const decision=decisionEngine.decide({credit,projectState:project.state,progressPercent:progress.percent,progressTracked:progress.total>0,
         estimatedCostMicros,loop:loopAssessment,checkpointAvailable:true});
       if(decision.action!=="ALLOW")return reply.code(409).send({error:"GUARD_DECISION",decision});
     }catch(error){
