@@ -121,3 +121,21 @@ Protected action classes: `SCOPE_CHANGE`, `ARCHITECTURE_CHANGE`, `DESTRUCTIVE_AC
 Set `APPROVAL_AUTHORITY_TOKEN` to a random secret of at least 24 characters. Only a trusted approval UI/operator integration may possess and submit it. Never put it in an Agent prompt, checkpoint, tool context, or logs. Apply migration `004_approval_gate.sql` before starting PostgreSQL mode. In-memory mode is development-only and loses approval records on restart.
 
 **Enforcement boundary:** these MCP tools provide a fail-closed approval contract, but an external Agent can ignore the contract or bypass MCP unless its orchestration/runtime requires the check before protected tool execution. The current Gateway does not automatically intercept arbitrary filesystem, deployment, or third-party tool actions. Production enforcement requires integrating the check into the Agent orchestrator and each privileged tool adapter, with the approval authority kept outside the model's reach.
+
+
+### Universal intent output
+
+`guard.prompt.prepare` also returns an `intent` object for general software work:
+
+| Field | Meaning |
+|---|---|
+| `taskType` | `build`, `debug`, `modify`, `optimize`, `analyze`, `integrate`, or `other` |
+| `target` | Detected target such as web app, API, database, bot, developer tool, library, script, or component |
+| `objective` | Concise statement of the requested outcome |
+| `requirements` | Extracted requirements and explicitly marked suggestions |
+| `constraints` | User-provided constraints that must be preserved |
+| `context` | Supplied stack and project mode |
+| `expectedOutput` | Expected deliverable for the task type |
+| `verification` | Suggested checks appropriate to the task |
+
+This is a deterministic first-pass schema, not a claim of full natural-language understanding. The original prompt remains authoritative. Agents must inspect project files, clarify critical unknowns, and verify changes with evidence. Do not assume a detected target or task type is sufficient to execute a change safely.
