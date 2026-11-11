@@ -7,7 +7,7 @@
     "dev": "pnpm --filter @credit-guard/guard-core build && tsx watch src/index.ts",
     "build": "pnpm --filter @credit-guard/guard-core build && tsc -p tsconfig.json",
     "typecheck": "pnpm --filter @credit-guard/guard-core build && tsc --noEmit -p tsconfig.json",
-    "test": "tsx --test src/**/*.test.ts"
+    "test": "tsx --test src/**/*.test.ts src/*.test.ts"
   },
   "dependencies": {
     "@credit-guard/guard-core": "workspace:*",
