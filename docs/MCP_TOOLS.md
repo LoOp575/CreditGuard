@@ -98,7 +98,7 @@ The unresolved list contains metadata only, not prompts or credentials. Once a r
 Call before substantial work. Input: `rawPrompt`, optional `projectMode`, `techStack`, and `constraints`. Output preserves the original request and provides a structured brief, unknowns, optional suggested requirements, task phases, and execution rules. Suggested requirements are not user-approved scope.
 
 ### `guard.failure.analyze`
-Call before retrying a failed task. Supply the current `errorSignature`, `strategySignature`, and `previousAttempts` from project history. It returns `DIAGNOSE`, `REPLAN`, or `PAUSE`. Persist attempt history in project checkpoints so the analysis remains useful across sessions.
+Call before retrying a failed task. Supply `projectId`, the current `errorSignature`, `strategySignature`, and `previousAttempts` from project history. It returns `DIAGNOSE`, `REPLAN`, or `PAUSE`. It also records a combined error/strategy signature in the persistent Loop Guard when PostgreSQL mode is enabled. Persist detailed attempt history in project checkpoints so analysis remains useful across sessions.
 
 ### `guard.intent.check_scope`
 Compare `taskRequirementIds` with `approvedRequirementIds`. It returns `ALLOW` or `REVIEW`. This is a deterministic ID-based check and does not replace semantic review by the Agent.
