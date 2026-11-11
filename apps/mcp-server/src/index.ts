@@ -3,11 +3,10 @@ import { fileURLToPath } from "node:url";
 dotenv.config({ path: fileURLToPath(new URL("../../../.env", import.meta.url)) });
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { CreditEngine, CreditEngineError, PostgresCreditLedger, ProjectEngine, LoopGuard, DecisionEngine, ContextOptimizer, PostgresProjectStore, PostgresLoopStore, PostgresCheckpointStore, InMemoryCheckpointStore } from "@credit-guard/guard-core";
+import { CreditEngine, CreditEngineError, PostgresCreditLedger, ProjectEngine, LoopGuard, DecisionEngine, ContextOptimizer, PostgresProjectStore, PostgresLoopStore, PostgresCheckpointStore, InMemoryCheckpointStore, preparePrompt, analyzeFailure, assessTaskScope, assessQuality } from "@credit-guard/guard-core";
 import { Pool } from "pg";
 import { z } from "zod";
 import { verifySecretToken } from "./security.js";
-import { preparePrompt, analyzeFailure, assessTaskScope, assessQuality } from "@credit-guard/guard-core";
 
 let projectEngine: ProjectEngine | PostgresProjectStore;
 let loopGuard: LoopGuard | PostgresLoopStore;
