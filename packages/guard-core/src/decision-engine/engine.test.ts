@@ -17,3 +17,12 @@ test("loop warning requires intervention even when cheaper model could fit", () 
     loop: { ...base.loop, action: "WARN", reason: "LOOP_RISK" } });
   assert.equal(result.action, "INTERVENE");
 });
+
+test("policy thresholds can be adjusted without changing decision code", () => {
+  const input = { ...base, credit: { ...base.credit, availableMicros: 1_500_000 }, estimatedCostMicros: 1_000_000 };
+  assert.equal(new DecisionEngine().decide(input).action, "OPTIMIZE");
+  assert.equal(new DecisionEngine({ lowRemainingBudgetPercent: 3 }).decide(input).action, "ALLOW");
+});
+test("invalid policy percentages are rejected", () => {
+  assert.throws(() => new DecisionEngine({ lowProgressPercent: 101 }), /between 0 and 100/);
+});
