@@ -144,3 +144,45 @@ await files.write("src/example.ts", "export const ready = true;");
 ```
 
 This adapter is a reference integration for one filesystem boundary, not a complete operating-system sandbox. It does not control shell commands, database clients, deployment tools, other processes, or provider traffic. Keep the authorization credential outside the Agent, do not expose unguarded filesystem handles to the Agent, and use an OS/container sandbox against hostile concurrent local processes. Run CI before relying on a deployment.
+
+
+## Guarded Agent adapters
+
+The workspace package `@credit-guard/agent-adapter` now includes:
+
+- `GuardedFilesystemAdapter`: bounded workspace reads/writes/overwrites/deletes; destructive operations require exact-scope approval.
+- `GuardedTerminalAdapter`: executes only trusted executable profiles, never a caller-supplied executable path; uses `shell: false`, a bounded timeout/output buffer, and requires security-sensitive approval for every command.
+- `GuardedDatabaseAdapter`: Agent selects a trusted migration ID only. SQL is registered by the host, SHA-256 checked, executed in a transaction, serialized with an advisory lock, and recorded in `cg_agent_migrations`. Database migrations require production approval.
+- `GuardedDeploymentAdapter`: Agent selects a trusted deployment target and artifact reference; a host-registered deployment handler runs only after production approval.
+- `createPostgresActionAuthorizer`: reads `cg_approval_requests` directly and verifies approval status, expiry, project, approval class, and exact fingerprint. Database errors propagate and fail closed.
+
+Example trusted wiring:
+
+```ts
+import { Pool } from "pg";
+import {
+  createPostgresActionAuthorizer,
+  GuardedFilesystemAdapter,
+  GuardedTerminalAdapter,
+} from "@credit-guard/agent-adapter";
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const authorize = createPostgresActionAuthorizer(pool);
+
+const files = await GuardedFilesystemAdapter.create({
+  rootDirectory: "/workspace/project",
+  projectId: "project-123",
+  authorize,
+});
+
+const terminal = await GuardedTerminalAdapter.create({
+  rootDirectory: "/workspace/project",
+  projectId: "project-123",
+  authorize,
+  commands: { node: process.execPath },
+});
+```
+
+Keep the PostgreSQL connection and approval authority outside Agent context. The Agent must never receive a raw database pool, provider keys, deployment credentials, or an unguarded alternative tool. Terminal executable profiles are trusted host configuration; approval is bound to the exact profile, executable, arguments, and workspace. Database migration SQL and deployment handlers are trusted host configuration, not Agent-submitted code.
+
+These adapters are enforcement boundaries only when every corresponding Agent tool is routed through them. They do not sandbox arbitrary child processes, third-party plugins, direct host access, or network calls. Run them in a least-privilege OS/container workspace with restricted network and filesystem permissions. Deployment integrations must register their actual provider-specific handler; the generic adapter does not pretend to deploy by itself.
