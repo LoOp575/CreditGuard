@@ -6,11 +6,13 @@ import { createProviderAdapters, type ProviderName } from "./provider-adapters.j
 
 type Pricing={inputUsdPerMillion:number;outputUsdPerMillion:number};
 const databaseUrl=process.env.DATABASE_URL;
-const gatewayToken=process.env.CREDIT_GUARD_GATEWAY_TOKEN;
+const projectTokens:Record<string,string>=JSON.parse(process.env.GATEWAY_PROJECT_TOKENS_JSON??"{}");
+const providerKeys:Record<string,string>=JSON.parse(process.env.PROVIDER_API_KEYS_JSON??"{}");
 const pricing:Record<string,Pricing>=JSON.parse(process.env.PROVIDER_PRICING_JSON??"{}");
 const safetyMultiplier=Number(process.env.ESTIMATE_SAFETY_MULTIPLIER??"1.5");
 if(!databaseUrl)throw new Error("DATABASE_URL is required for enforced Gateway mode");
-if(!gatewayToken||gatewayToken.length<24)throw new Error("CREDIT_GUARD_GATEWAY_TOKEN must be configured with at least 24 characters");
+if(!Object.keys(projectTokens).length||Object.values(projectTokens).some(token=>typeof token!=="string"||token.length<24))
+  throw new Error("GATEWAY_PROJECT_TOKENS_JSON must map project IDs to tokens of at least 24 characters");
 if(!Number.isFinite(safetyMultiplier)||safetyMultiplier<1||safetyMultiplier>5)throw new Error("ESTIMATE_SAFETY_MULTIPLIER must be between 1 and 5");
 
 const pool=new Pool({connectionString:databaseUrl,max:20});
@@ -24,11 +26,14 @@ app.get("/health",async()=>({service:"credit-guard-gateway",status:"ok",mode:"en
 app.post<{Body:{model:string;messages:Array<{role:string;content:string}>;max_tokens?:number;temperature?:number}}>(
   "/v1/chat/completions",
   async(request,reply)=>{
-    if(request.headers["x-credit-guard-token"]!==gatewayToken)return reply.code(401).send({error:"UNAUTHORIZED"});
     const projectId=String(request.headers["x-credit-guard-project"]??"");
     const provider=String(request.headers["x-credit-guard-provider"]??"") as ProviderName;
-    const apiKey=String(request.headers["x-provider-api-key"]??"");
-    if(!projectId.trim()||!apiKey.trim())return reply.code(400).send({error:"PROJECT_AND_PROVIDER_KEY_REQUIRED"});
+    if(!projectId.trim())return reply.code(400).send({error:"PROJECT_REQUIRED"});
+    const expectedToken=projectTokens[projectId];
+    if(!expectedToken||request.headers["x-credit-guard-token"]!==expectedToken)return reply.code(401).send({error:"UNAUTHORIZED"});
+    // Provider keys are loaded only by the Gateway process, never sent by the Agent.
+    const apiKey=providerKeys[`${provider}:${projectId}`];
+    if(!apiKey)return reply.code(503).send({error:"PROVIDER_KEY_NOT_CONFIGURED",provider,projectId});
     if(!Object.hasOwn(adapters,provider))return reply.code(400).send({error:"UNSUPPORTED_PROVIDER"});
     const body=request.body;
     if(!body||typeof body.model!=="string"||!Array.isArray(body.messages)||!body.messages.length||
