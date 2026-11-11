@@ -10,6 +10,7 @@
     "test": "tsx --test src/*.test.ts"
   },
   "dependencies": {
+    "dotenv": "^16.5.0",
     "@credit-guard/guard-core": "workspace:*",
     "fastify": "^5.3.3",
     "pg": "^8.16.0"
