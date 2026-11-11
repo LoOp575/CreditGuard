@@ -1,4 +1,5 @@
 import type { ClarificationItem, PreparedPrompt, PreparedTask, PromptPreparationInput, SemanticInterpretation, TaskCategory } from "./types.js";
+import { detectLanguage } from "./language.js";
 
 function unique(values: string[]): string[] {
   return [...new Set(values.map(value => value.trim()).filter(Boolean))];
@@ -70,11 +71,11 @@ type SemanticRule = { pattern: RegExp; userPhrase: string; interpretation: strin
 const SEMANTIC_RULES: SemanticRule[] = [
   { pattern: /\bbagus\b|\bindah\b|\bkeren\b/i, userPhrase: "Bagus / indah / keren", interpretation: "High-quality visual design", category: "design", requiresDesignContext: true },
   { pattern: /\bmodern\b/i, userPhrase: "Modern", interpretation: "Modern UI design", category: "design", requiresDesignContext: true },
-  { pattern: /sederhana|tidak ramai|minimalis|tidak ribet/i, userPhrase: "Sederhana / tidak ramai", interpretation: "Simple, uncluttered UI with clear information hierarchy", category: "design", requiresDesignContext: true },
-  { pattern: /enak dipandang|nyaman dilihat|tidak menyakitkan mata/i, userPhrase: "Enak dipandang", interpretation: "Clear visual hierarchy, balanced spacing, and consistent visual styling", category: "design", requiresDesignContext: true },
-  { pattern: /tidak kaku|nggak kaku|gak kaku|lebih hidup/i, userPhrase: "Tidak kaku", interpretation: "Dynamic layout and natural interactions", category: "usability", requiresDesignContext: true },
-  { pattern: /nyaman dibuka di (hp|ponsel|mobile)|mudah digunakan di (hp|ponsel)/i, userPhrase: "Nyaman dibuka di HP", interpretation: "Mobile-friendly user experience", category: "usability" },
-  { pattern: /menyesuaikan (ukuran )?layar|semua ukuran layar|berbagai ukuran layar/i, userPhrase: "Menyesuaikan layar", interpretation: "Responsive design", category: "design" },
+  { pattern: /sederhana|tidak ramai|minimalis|tidak ribet|simple|minimalista|minimaliste|einfach/i, userPhrase: "Simple / uncluttered", interpretation: "Simple, uncluttered UI with clear information hierarchy", category: "design", requiresDesignContext: true },
+  { pattern: /enak dipandang|nyaman dilihat|tidak menyakitkan mata|fácil de ver|agradável de usar|agréable à regarder|easy on the eyes/i, userPhrase: "Pleasant to look at", interpretation: "Clear visual hierarchy, balanced spacing, and consistent visual styling", category: "design", requiresDesignContext: true },
+  { pattern: /tidak kaku|nggak kaku|gak kaku|lebih hidup|not rigid|natural interactions|dinâmico|dynamique/i, userPhrase: "Not rigid / dynamic", interpretation: "Dynamic layout and natural interactions", category: "usability", requiresDesignContext: true },
+  { pattern: /nyaman dibuka di (hp|ponsel|mobile)|mudah digunakan di (hp|ponsel)|mobile[- ]friendly|fácil de usar en (el )?móvil|facile à utiliser sur mobile/i, userPhrase: "Comfortable on mobile", interpretation: "Mobile-friendly user experience", category: "usability" },
+  { pattern: /menyesuaikan (ukuran )?layar|semua ukuran layar|berbagai ukuran layar|responsive|responsivo|adaptable to screen sizes|s\\\x27adapte à toutes les tailles/i, userPhrase: "Adapts to screen sizes", interpretation: "Responsive design", category: "design" },
   { pattern: /\bresponsive\b|\bresponsif\b/i, userPhrase: "Responsive", interpretation: "Responsive design", category: "design" },
   { pattern: /tidak lemot|jangan lemot|cepat dibuka|loading cepat|performa cepat/i, userPhrase: "Tidak lemot / cepat", interpretation: "Web performance optimization", category: "performance" },
   { pattern: /aman|keamanan kuat|tidak mudah dibobol/i, userPhrase: "Aman / keamanan kuat", interpretation: "Apply appropriate application security controls", category: "security" },
@@ -143,6 +144,7 @@ function buildTasks(category: TaskCategory): PreparedTask[] {
 
 export function preparePrompt(input: PromptPreparationInput): PreparedPrompt {
   const originalPrompt = input.rawPrompt.trim();
+  const language = detectLanguage(originalPrompt);
   if (!originalPrompt) throw new TypeError("rawPrompt must not be empty");
   if (originalPrompt.length > 20_000) throw new RangeError("rawPrompt exceeds the 20000 character limit");
 
@@ -224,5 +226,5 @@ export function preparePrompt(input: PromptPreparationInput): PreparedPrompt {
     ...executionRules.map(rule => `- ${rule}`),
   ].join("\n");
 
-  return { version: "1", originalPrompt, normalizedGoal, objective, intent, semanticInterpretations, optimizedPrompt: optimized.prompt, requiresSemanticReview: optimized.requiresReview, category, projectMode, explicitConstraints, unknowns, suggestedRequirements, tasks, executionRules, refinedPrompt };
+  return { version: "1", language, originalPrompt, normalizedGoal, objective, intent, semanticInterpretations, optimizedPrompt: optimized.prompt, requiresSemanticReview: optimized.requiresReview || !language.supported, category, projectMode, explicitConstraints, unknowns, suggestedRequirements, tasks, executionRules, refinedPrompt };
 }
