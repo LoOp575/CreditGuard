@@ -140,7 +140,8 @@ export function preparePrompt(input: PromptPreparationInput): PreparedPrompt {
   if (!originalPrompt) throw new TypeError("rawPrompt must not be empty");
   if (originalPrompt.length > 20_000) throw new RangeError("rawPrompt exceeds the 20000 character limit");
 
-  const category = classify(originalPrompt);\n  const taskType = classifyCodingTask(originalPrompt);\n  const target = inferTarget(originalPrompt);
+  const category = classify(originalPrompt);
+  const taskType = classifyCodingTask(originalPrompt);\n  const target = inferTarget(originalPrompt);
   const projectMode = input.projectMode ?? "unknown";
   const techStack = unique(input.techStack ?? []);
   const explicitConstraints = unique(input.constraints ?? []);
@@ -172,7 +173,7 @@ export function preparePrompt(input: PromptPreparationInput): PreparedPrompt {
     taskType,
     target,
     objective,
-    requirements: [...new Set([...suggestedRequirements, ...optimized.prompt.split("\\n").slice(1).flatMap(line => line.startsWith("Requirements: ") ? line.slice(14).split("; ") : [])])],
+    requirements: [...new Set([...suggestedRequirements, ...optimized.prompt.split("\n").slice(1).flatMap(line => line.startsWith("Requirements: ") ? line.slice(14).split("; ") : [])])],
     constraints: explicitConstraints,
     context: [...techStack, ...(projectMode === "unknown" ? [] : [`project_mode:${projectMode}`])],
     expectedOutput: taskType === "debug" ? ["Root cause", "Minimal fix", "Regression test or reproducible verification"] : taskType === "analyze" ? ["Findings", "Evidence", "Prioritized recommendations"] : ["Requested software change or deliverable"],
@@ -190,7 +191,8 @@ export function preparePrompt(input: PromptPreparationInput): PreparedPrompt {
     "ORIGINAL USER REQUEST (authoritative; preserve meaning):",
     originalPrompt,
     "",
-    `TASK CATEGORY: ${category}`,\n    `CODING TASK TYPE: ${taskType}`,\n    `TARGET: ${target}`,
+    `TASK CATEGORY: ${category}`,
+    `CODING TASK TYPE: ${taskType}`,\n    `TARGET: ${target}`,
     `PROJECT MODE: ${projectMode}`,
     `TECH STACK: ${techLine}`,
     "",
