@@ -13,7 +13,9 @@
 - [x] Atomic reservations (single-process serialization)
 - [x] Usage reconciliation
 - [x] Concurrency and failure test cases added
-- [ ] Durable transactional storage (PostgreSQL)
+- [x] PostgreSQL schema and durable ledger adapter implemented
+- [x] MCP DATABASE_URL selection with explicit in-memory development fallback
+- [ ] PostgreSQL migration and adapter integration tests
 - [ ] Distributed concurrency and failure tests
 
 ## Phase 3: Project + Loop Engine
