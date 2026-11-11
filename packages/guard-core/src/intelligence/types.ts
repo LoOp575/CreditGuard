@@ -27,11 +27,25 @@ export interface SemanticInterpretation {
   category: "design" | "usability" | "performance" | "security";
 }
 
+export type CodingTaskType = "build" | "debug" | "modify" | "optimize" | "analyze" | "integrate" | "other";
+
+export interface UniversalIntent {
+  taskType: CodingTaskType;
+  target: string;
+  objective: string;
+  requirements: string[];
+  constraints: string[];
+  context: string[];
+  expectedOutput: string[];
+  verification: string[];
+}
+
 export interface PreparedPrompt {
   version: "1";
   originalPrompt: string;
   normalizedGoal: string;
   objective: string;
+  intent: UniversalIntent;
   semanticInterpretations: SemanticInterpretation[];
   optimizedPrompt: string;
   requiresSemanticReview: boolean;
