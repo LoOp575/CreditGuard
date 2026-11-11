@@ -22,7 +22,7 @@ It helps agents estimate usage, reserve project budgets, detect wasteful retry l
 6. Persistent retry/loop protection and no-progress detection.
 7. Decision engine: ALLOW, OPTIMIZE, INTERVENE, CHECKPOINT_PAUSE, BLOCK.
 8. Context selection under a character budget.
-9. Provider gateway enforcement with BYOK credential isolation.
+9. Provider gateway enforcement with BYOK credential isolation.\n10. Prompt Intelligence: preserve user intent, structure prompts, surface unknowns, and plan bounded tasks.\n11. Failure and quality intelligence: avoid repeated failed strategies, check approved scope, and require evidence for required quality checks.
 
 ## Planned stack
 
@@ -95,3 +95,10 @@ Copy `.env.example` to `.env` when environment configuration is needed. Never co
 ## License
 
 License not yet selected.
+
+
+## Prompt and execution intelligence
+
+Use `guard.prompt.prepare` before starting a substantial task. It returns the unchanged original request, a structured execution brief, open questions, optional (unapproved) requirement suggestions, and a bounded task outline. Use `guard.failure.analyze` with prior attempts from project history before retrying a failed task. Use `guard.intent.check_scope` to compare task requirement IDs with the approved baseline, and `guard.quality.evaluate` to ensure required checks have evidence.
+
+The preparation logic is deliberately conservative and deterministic. It structures known information; it does not pretend to infer every hidden user intention. The connected Agent remains responsible for semantic interpretation, asking the user when critical decisions are missing, and actually executing the plan. Persist compact project summaries and attempt history in checkpoints; do not store secrets or unnecessary raw private prompts.
