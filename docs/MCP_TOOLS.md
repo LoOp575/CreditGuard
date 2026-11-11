@@ -45,6 +45,8 @@ If provider outcome is uncertain, do not release the reservation blindly. Inspec
 
 Verified milestone evidence records a progress event automatically. The Gateway also records provider requests and failures. A loop warning or pause takes priority over a cheaper-model fallback.
 
+Decision thresholds are configurable through `GUARD_LOW_REMAINING_BUDGET_PERCENT` and `GUARD_LOW_PROGRESS_PERCENT` (both 0-100, default 10).
+
 Decision actions:
 - `ALLOW`: request fits current policy.
 - `OPTIMIZE`: try a cheaper configured model or reduce context/output.
