@@ -158,7 +158,7 @@ server.tool(
 );
 
 server.tool(
-  "guard.project.create",
+  "guard.credit.project.create",
   "Create a project budget. Amounts are integer USD micros (1 USD = 1,000,000 micros).",
   {
     projectId: z.string().min(1),
