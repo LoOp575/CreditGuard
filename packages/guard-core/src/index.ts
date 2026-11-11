@@ -6,3 +6,4 @@ export * from "./decision-engine/index.js";
 export * from "./context-optimizer/index.js";
 export * from "./state-manager/index.js";
 export * from "./intelligence/index.js";
+export * from "./orchestrator.js";
