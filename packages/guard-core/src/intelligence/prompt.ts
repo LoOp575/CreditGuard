@@ -18,7 +18,8 @@ function buildQuestions(category: TaskCategory, projectMode: PromptPreparationIn
   if (projectMode !== "new" && projectMode !== "existing") {
     questions.push({ key: "project_mode", question: "Apakah ini proyek baru atau melanjutkan proyek yang sudah ada?", importance: "critical" });
   }
-  const stackMentionedInPrompt = /\b(next\.?js|react|vue|angular|svelte|node(?:\.js)?|express|fastify|nestjs|django|flask|laravel|rails|spring|\.net|postgres(?:ql)?|mysql|mongodb)\b/i.test(promptForQuestions);\n  if (!techStack.length && !stackMentionedInPrompt && category === "software_project") {
+  const stackMentionedInPrompt = /\b(next\.?js|react|vue|angular|svelte|node(?:\.js)?|express|fastify|nestjs|django|flask|laravel|rails|spring|\.net|postgres(?:ql)?|mysql|mongodb)\b/i.test(promptForQuestions);
+  if (!techStack.length && !stackMentionedInPrompt && category === "software_project") {
     questions.push({ key: "tech_stack", question: "Apakah ada framework atau bahasa pemrograman yang wajib digunakan?", importance: "useful" });
   }
   if (category === "software_project" && /payment|pembayaran|checkout|transaksi/i.test(promptForQuestions)) {
