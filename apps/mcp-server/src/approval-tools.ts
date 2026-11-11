@@ -12,6 +12,9 @@ type ApprovalRecord = {
   requestedAt: string; expiresAt: string; resolvedAt?: string; resolutionNote?: string;
 };
 const memory = new Map<string, ApprovalRecord>();
+function matchesRequest(record: ApprovalRecord, args: { action: ApprovalAction; title: string; details: string; scopeFingerprint: string }): boolean {
+  return record.action===args.action && record.title===args.title && record.details===args.details && record.scopeFingerprint===args.scopeFingerprint;
+}
 const actionSchema = z.enum(["SCOPE_CHANGE", "ARCHITECTURE_CHANGE", "DESTRUCTIVE_ACTION", "PRODUCTION_CHANGE", "SPEND_LIMIT", "SECURITY_SENSITIVE"]);
 
 export function registerApprovalTools(server: McpServer, pool?: Pool) {
@@ -36,10 +39,10 @@ export function registerApprovalTools(server: McpServer, pool?: Pool) {
         const expiresInMinutes=args.expiresInMinutes ?? 60;
         if (pool) {
           const existing=await pool.query("SELECT * FROM cg_approval_requests WHERE project_id=$1 AND idempotency_key=$2",[args.projectId,args.idempotencyKey]);
-          if (existing.rowCount) return {content:[{type:"text",text:JSON.stringify(await get(existing.rows[0].approval_id))}]};
+          if (existing.rowCount) { const record=await get(existing.rows[0].approval_id); if(!record || !matchesRequest(record,args)) throw new Error("APPROVAL_IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD"); return {content:[{type:"text",text:JSON.stringify(record)}]}; }
         } else {
           const existing=[...memory.values()].find(x=>x.projectId===args.projectId && x.idempotencyKey===args.idempotencyKey);
-          if (existing) return {content:[{type:"text",text:JSON.stringify(existing)}]};
+          if (existing) { if(!matchesRequest(existing,args)) throw new Error("APPROVAL_IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD"); return {content:[{type:"text",text:JSON.stringify(existing)}]}; }
         }
         const now=new Date();
         const record:ApprovalRecord={id:randomUUID(),projectId:args.projectId,action:args.action,title:args.title,details:args.details,
@@ -53,7 +56,7 @@ export function registerApprovalTools(server: McpServer, pool?: Pool) {
             [record.id,record.projectId,record.action,record.title,record.details,record.scopeFingerprint,record.idempotencyKey,record.expiresAt]);
           if (!inserted.rowCount) {
             const existing=await pool.query("SELECT approval_id FROM cg_approval_requests WHERE project_id=$1 AND idempotency_key=$2",[record.projectId,record.idempotencyKey]);
-            if (existing.rowCount) return {content:[{type:"text",text:JSON.stringify(await get(existing.rows[0].approval_id))}]};
+            if (existing.rowCount) { const record=await get(existing.rows[0].approval_id); if(!record || !matchesRequest(record,args)) throw new Error("APPROVAL_IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD"); return {content:[{type:"text",text:JSON.stringify(record)}]}; }
             throw new Error("APPROVAL_IDEMPOTENCY_CONFLICT");
           }
         } else memory.set(record.id,record);
