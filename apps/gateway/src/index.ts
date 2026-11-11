@@ -1,3 +1,5 @@
+import dotenv from "dotenv";
+dotenv.config({ path: "../../.env" });
 import { Pool } from "pg";
 import { createGatewayServer } from "./server.js";
 import type { ModelPricing } from "./pricing.js";
