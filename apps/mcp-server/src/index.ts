@@ -382,7 +382,7 @@ server.tool(
 
 server.tool(
   "guard.prompt.prepare",
-  "Extract user intent and return a concise optimizedPrompt plus semantic interpretations. The Agent should send optimizedPrompt to the primary model when requiresSemanticReview is false; if true, retain the original request and resolve ambiguity before execution. Suggestions are explicitly marked and must not be treated as approved requirements.",
+  "Detect the input language conservatively, extract a universal software-task intent, and return a concise optimizedPrompt plus semantic interpretations. The Agent should use optimizedPrompt only when requiresSemanticReview is false; otherwise retain the original request and resolve ambiguity. Language detection is heuristic, not full translation or semantic understanding. Suggestions are not approved scope.",
   {
     rawPrompt: z.string().min(1).max(20000),
     projectMode: z.enum(["new", "existing", "unknown"]).optional(),
