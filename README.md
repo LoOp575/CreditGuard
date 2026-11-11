@@ -102,3 +102,8 @@ License not yet selected.
 Use `guard.prompt.prepare` before starting a substantial task. It returns the unchanged original request, a structured execution brief, open questions, optional (unapproved) requirement suggestions, and a bounded task outline. Use `guard.failure.analyze` with prior attempts from project history before retrying a failed task. Use `guard.intent.check_scope` to compare task requirement IDs with the approved baseline, and `guard.quality.evaluate` to ensure required checks have evidence.
 
 The preparation logic is deliberately conservative and deterministic. It structures known information; it does not pretend to infer every hidden user intention. The connected Agent remains responsible for semantic interpretation, asking the user when critical decisions are missing, and actually executing the plan. Persist compact project summaries and attempt history in checkpoints; do not store secrets or unnecessary raw private prompts.
+
+
+## Approval Gate
+
+Credit Guard exposes `guard.approval.request`, `guard.approval.get`, `guard.approval.resolve`, and `guard.approval.check`. Risky scope, architecture, destructive, production, spending-limit, and security-sensitive actions can be paused until a trusted user approval interface records a decision. Approval is time-limited and bound to the exact project and scope fingerprint. Apply migration `004_approval_gate.sql` and configure `APPROVAL_AUTHORITY_TOKEN` outside the Agent environment. The current MCP contract is fail-closed but not a universal firewall; hard enforcement still requires the Agent Orchestrator and privileged tool adapters to require the check.
