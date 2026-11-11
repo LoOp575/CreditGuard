@@ -6,7 +6,8 @@
   "exports": {
     ".": "./dist/index.js",
     "./credit-engine": "./dist/credit-engine/index.js",
-    "./postgres": "./dist/credit-engine/postgres.js"
+    "./postgres": "./dist/credit-engine/postgres.js",
+    "./action-adapter": "./dist/action-adapter.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
