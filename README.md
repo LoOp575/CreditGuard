@@ -23,6 +23,7 @@ It helps agents estimate usage, reserve project budgets, detect wasteful retry l
 7. Decision engine: ALLOW, OPTIMIZE, INTERVENE, CHECKPOINT_PAUSE, BLOCK.
 8. Context selection under a character budget.
 9. Provider gateway enforcement with BYOK credential isolation.\n10. Prompt Intelligence: preserve user intent, structure prompts, surface unknowns, and plan bounded tasks.\n11. Failure and quality intelligence: avoid repeated failed strategies, check approved scope, and require evidence for required quality checks.
+12. Unified execution orchestrator: combine prompt, scope, quality, loop, project, and budget signals into one advisory execution recommendation.
 
 ## Planned stack
 
@@ -108,3 +109,8 @@ The preparation logic is deliberately conservative and deterministic. A universa
 ## Approval Gate
 
 Credit Guard exposes `guard.approval.request`, `guard.approval.get`, `guard.approval.resolve`, and `guard.approval.check`. Risky scope, architecture, destructive, production, spending-limit, and security-sensitive actions can be paused until a trusted user approval interface records a decision. Approval is time-limited and bound to the exact project and scope fingerprint. Apply migration `004_approval_gate.sql` and configure `APPROVAL_AUTHORITY_TOKEN` outside the Agent environment. The current MCP contract is fail-closed but not a universal firewall; hard enforcement still requires the Agent Orchestrator and privileged tool adapters to require the check.
+
+
+## Unified execution orchestrator
+
+`guard.orchestrator.evaluate` composes the existing intelligence and policy modules into a single explainable recommendation. It reads project, budget, progress, and loop state, then reports whether the Agent should block, pause, optimize cost, clarify intent, request scope approval, execute with guardrails, or verify before completion. This is advisory composition only: it does not intercept arbitrary Agent tools or provider calls, and does not replace the Gateway or trusted approval/verifier integrations. See `docs/MCP_TOOLS.md` for the input contract and enforcement boundary.
