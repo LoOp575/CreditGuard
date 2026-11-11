@@ -47,7 +47,7 @@ test("database migration runs only registered SQL in a transaction after approva
   assert.ok(fake.calls.some((call) => call.sql === "COMMIT"));
 });
 
-test("database adapter rejects unregistered SQL and checksum drift", () => {
+test("database adapter rejects unregistered SQL and checksum drift", async () => {
   const sql = "SELECT 1";
   const sha256 = createHash("sha256").update(sql).digest("hex");
   const fake = fakePool();
@@ -55,7 +55,7 @@ test("database adapter rejects unregistered SQL and checksum drift", () => {
     pool: fake.pool as never, projectId: "p1", migrations: [{ id: "known", sql, sha256 }],
     authorize: async () => ({ allowed: true, reason: "APPROVED" }),
   });
-  assert.rejects(() => adapter.runMigration("SELECT 2"), /MIGRATION_NOT_REGISTERED/);
+  await assert.rejects(() => adapter.runMigration("SELECT 2"), /MIGRATION_NOT_REGISTERED/);
   assert.throws(() => new GuardedDatabaseAdapter({
     pool: fake.pool as never, projectId: "p1", migrations: [{ id: "bad", sql, sha256: "wrong" }],
     authorize: async () => ({ allowed: true, reason: "APPROVED" }),
