@@ -57,7 +57,7 @@ Every decision should return a machine-readable reason and relevant budget/progr
 
 ## Prompt and execution intelligence
 
-The Intelligence layer prepares a structured execution brief from the original user prompt before an Agent starts work. It preserves the original request, separates explicit constraints from unknowns, marks domain-specific ideas as suggestions rather than approved scope, and proposes bounded tasks with observable completion evidence. The deterministic pre-processor is intentionally conservative; it does not claim to replace an LLM's semantic reasoning or silently answer critical unknowns.
+The Intelligence layer prepares a structured execution brief from the original user prompt before an Agent starts work. It preserves the original request, separates explicit constraints from unknowns, marks domain-specific ideas as suggestions rather than approved scope, and proposes bounded tasks with observable completion evidence. The deterministic pre-processor is intentionally conservative. It maps a bounded Indonesian phrase dictionary (for example, “enak dipandang” to visual hierarchy and consistent styling, and “menyesuaikan layar” to responsive design), extracts supported project facts, and returns a concise `optimizedPrompt`. It preserves `originalPrompt` as the source of truth and sets `requiresSemanticReview` when the supported rules cannot safely represent the request. This v1 does not claim general-purpose LLM-level semantic understanding or silently answer critical unknowns.
 
 The MCP tools expose:
 - `guard.prompt.prepare`: create the prompt brief, clarification questions, suggested requirements, and task outline.
