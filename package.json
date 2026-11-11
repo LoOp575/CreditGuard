@@ -3,12 +3,14 @@
   "private": true,
   "version": "0.1.0",
   "packageManager": "pnpm@9.15.0",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "pnpm --filter @credit-guard/mcp-server dev",
     "dev:gateway": "pnpm --filter @credit-guard/gateway dev",
     "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "typecheck": "pnpm --filter @credit-guard/guard-core build && pnpm -r typecheck",
+    "test": "pnpm --filter @credit-guard/guard-core build && pnpm -r test"
   }
 }
